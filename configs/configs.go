@@ -47,9 +47,9 @@ var (
 	CrawlByGodocApi           = true
 	CrawlGithubUpdate         = true
 	CrawlerDuePerRun          = 1 * time.Hour
-	CrawlerGithubClientID     = ""
-	CrawlerGithubClientSecret = ""
-	CrawlerGithubPersonal     = ""
+	CrawlerGithubClientID     = os.Getenv("GITHUB_CLIENT_ID")
+	CrawlerGithubClientSecret = os.Getenv("GITHUB_CLIENT_SECRET")
+	CrawlerGithubPersonal     = os.Getenv("GITHUB_PERSONAL_ACCESS_TOKEN")
 
 	BiWebPath = "/bi"
 
