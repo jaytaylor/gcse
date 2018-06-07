@@ -1,6 +1,3 @@
-/*
-	GCSE HTTP server.
-*/
 package main
 
 import (
@@ -10,7 +7,6 @@ import (
 	"html/template"
 	"log"
 	"net/http"
-	"runtime"
 	"strings"
 	"time"
 
@@ -213,7 +209,6 @@ func newServer() *server {
 func main() {
 	flag.Parse()
 
-	runtime.GOMAXPROCS(2)
 	if err := configs.ImportSegments().ClearUndones(); err != nil {
 		log.Printf("CleanImportSegments failed: %v", err)
 	}

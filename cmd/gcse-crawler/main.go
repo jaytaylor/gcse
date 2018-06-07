@@ -106,7 +106,6 @@ func cleanTempDir() {
 
 func main() {
 	ctx := context.Background()
-	runtime.GOMAXPROCS(2)
 
 	log.Printf("Using personal: %v", configs.CrawlerGithubPersonal)
 	gcse.GithubSpider = github.NewSpiderWithToken(configs.CrawlerGithubPersonal)
