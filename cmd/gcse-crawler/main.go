@@ -8,6 +8,7 @@ import (
 	"flag"
 	"io"
 	"log"
+	"os"
 	"runtime"
 	"time"
 
@@ -159,8 +160,12 @@ func main() {
 	cDB = gcse.LoadCrawlerDB()
 
 	fpDocs := configs.DocsDBFsPath()
-	if err := loadAllDocsPkgs(kv.DirInput(fpDocs)); err != nil {
-		log.Fatalf("loadAllDocsPkgs: %v", err)
+	dirInput := kv.DirInput(fpDocs)
+	if err := os.MkdirAll(dirInput.Path, os.FileMode(int(0700))); err != nil {
+		log.Fatalf("main: creating directory %v: %v", dirInput.Path, err)
+	}
+	if err := loadAllDocsPkgs(dirInput); err != nil {
+		log.Fatalf("loadAllDocsPkgs: loading data from %v: %v", dirInput.Path, err)
 	}
 	log.Printf("%d docs loaded!", len(allDocsPkgs))
 
