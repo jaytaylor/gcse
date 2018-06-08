@@ -67,7 +67,8 @@ func (cdb *CrawlerDB) SchedulePackage(pkg string, sTime time.Time, etag string) 
 	return nil
 }
 
-// SchedulePackage schedules a package to be crawled at a specific time if not specified earlier.
+// PushToCrawlPackage schedules a package to be crawled at a specific time if
+// not specified earlier.
 func (cdb *CrawlerDB) PushToCrawlPackage(pkg string) {
 	now := time.Now()
 	var ent CrawlingEntry
