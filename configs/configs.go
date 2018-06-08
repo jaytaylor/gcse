@@ -2,6 +2,7 @@
 package configs
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/daviddengcn/go-ljson-conf"
 	"github.com/daviddengcn/go-villa"
 	"github.com/daviddengcn/sophie"
+	"github.com/daviddengcn/sophie/kv"
 )
 
 const (
@@ -161,4 +163,15 @@ func DBOutSegments() utils.Segments {
 
 func IndexSegments() utils.Segments {
 	return utils.Segments(IndexPath())
+}
+
+// Mkdirs initializes the necessary directory structure.
+func Mkdirs() error {
+	fpDocs := DocsDBFsPath()
+	dirInput := kv.DirInput(fpDocs)
+	if err := os.MkdirAll(dirInput.Path, os.FileMode(int(0700))); err != nil {
+		return fmt.Errorf("config: creating directory %v: %v", dirInput.Path, err)
+	}
+	return nil
+
 }

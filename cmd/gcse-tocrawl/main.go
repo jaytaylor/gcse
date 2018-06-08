@@ -216,6 +216,10 @@ func main() {
 	log.Printf("Using personal: %v", configs.CrawlerGithubPersonal)
 	gcse.GithubSpider = github.NewSpiderWithToken(configs.CrawlerGithubPersonal)
 
+	if err := configs.Mkdirs(); err != nil {
+		log.Fatalf("main: %s", err)
+	}
+
 	// Load CrawlerDB
 	cDB = gcse.LoadCrawlerDB()
 
