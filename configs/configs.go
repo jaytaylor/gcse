@@ -32,7 +32,7 @@ const (
 
 var (
 	ServerAddr = ":8080"
-	ServerRoot = villa.Path("./service/web")
+	ServerRoot = villa.Path("./cmd/gcse-service-web")
 
 	LoadTemplatePass = ""
 	AutoLoadTemplate = false
