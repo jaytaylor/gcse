@@ -48,18 +48,23 @@ func TestSelectRepos(t *testing.T) {
 		user3 = "daviddeng"
 		name3 = "go"
 	)
+
 	assert.NoError(t, store.UpdateRepository(site, user1, name1, func(r *gpb.Repository) error {
 		r.Stars = 1
 		return nil
 	}))
+
 	now := time.Now()
+
 	assert.NoError(t, store.UpdateRepository(site, user2, name2, func(r *gpb.Repository) error {
 		r.Stars = 2
 		r.CrawlingInfo = &gpb.CrawlingInfo{}
 		r.CrawlingInfo.SetCrawlingTime(now.Add(-10 * timep.Day))
 		return nil
 	}))
+
 	ts3, _ := ptypes.TimestampProto(now.Add(-15 * timep.Day))
+
 	assert.NoError(t, store.UpdateRepository(site, user3, name3, func(r *gpb.Repository) error {
 		r.Stars = 3
 		r.CrawlingInfo = &gpb.CrawlingInfo{
@@ -68,24 +73,42 @@ func TestSelectRepos(t *testing.T) {
 		return nil
 	}))
 
+	{
+		repos, err := selectRepos(site, 99)
+		assert.NoError(t, err)
+
+		assert.Equal(t, "Number of repositories returned", len(repos), 3)
+	}
+
 	repos, err := selectRepos(site, 2)
 	assert.NoError(t, err)
-	assert.Equal(t, "repos", repos, []*RepositoryInfo{{
-		Repository: &gpb.Repository{
-			Stars: 1,
-		},
-		Name: name1,
-		User: user1,
-	}, {
-		Repository: &gpb.Repository{
-			Stars: 3,
-			CrawlingInfo: &gpb.CrawlingInfo{
-				CrawlingTime: ts3,
+
+	assert.Equal(t, "Number of repositories returned", len(repos), 2)
+
+	ci := &gpb.CrawlingInfo{
+		CrawlingTime: ts3,
+	}
+	// This must be set otherwise the equality test fails, probably due to pb
+	// ser/deser.
+	ci.CrawlingTime.XXX_sizecache = int32(0)
+
+	assert.Equal(t, "repos", repos, []*RepositoryInfo{
+		{
+			Repository: &gpb.Repository{
+				Stars: 1,
 			},
+			Name: name1,
+			User: user1,
 		},
-		Name: name3,
-		User: user3,
-	}})
+		{
+			Repository: &gpb.Repository{
+				Stars:        3,
+				CrawlingInfo: ci,
+			},
+			Name: name3,
+			User: user3,
+		},
+	})
 }
 
 func TestCrawlRepo_UnknownSite(t *testing.T) {
