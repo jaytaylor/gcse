@@ -91,9 +91,9 @@ func init() {
 	ncHosts := conf.StringList("crawler.noncrawl_hosts", nil)
 	NonCrawlHosts.Add(ncHosts...)
 
-	CrawlerGithubClientID = conf.String("crawler.github.clientid", "")
-	CrawlerGithubClientSecret = conf.String("crawler.github.clientsecret", "")
-	CrawlerGithubPersonal = conf.String("crawler.github.personal", "")
+	CrawlerGithubClientID = conf.String("crawler.github.clientid", CrawlerGithubClientID)
+	CrawlerGithubClientSecret = conf.String("crawler.github.clientsecret", CrawlerGithubClientSecret)
+	CrawlerGithubPersonal = conf.String("crawler.github.personal", CrawlerGithubPersonal)
 
 	NonStorePackageRegexps = conf.StringList("docdb.nonstore_regexps", nil)
 

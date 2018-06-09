@@ -106,7 +106,7 @@ func cleanTempDir() {
 func main() {
 	ctx := context.Background()
 
-	log.Printf("Using personal: %v", configs.CrawlerGithubPersonal)
+	log.Printf("Using personal github token: %v", configs.CrawlerGithubPersonal)
 	gcse.GithubSpider = github.NewSpiderWithToken(configs.CrawlerGithubPersonal)
 
 	if db, err := bh.Open(configs.FileCacheBoltPath(), 0644, nil); err == nil {
