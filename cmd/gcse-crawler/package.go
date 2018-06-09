@@ -100,7 +100,7 @@ func saveRelatedInfo(pi *gpb.PackageInfo) {
 		log.Printf("Updating person %v %v failed: %v", site, id, err)
 	}
 	for _, imp := range pi.Imports {
-		appendNewPackage(imp, "impoted:"+pi.Package)
+		appendNewPackage(imp, "imported:"+pi.Package)
 	}
 	for _, imp := range pi.TestImports {
 		appendNewPackage(imp, "testimported:"+pi.Package)
