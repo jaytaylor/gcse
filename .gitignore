@@ -24,8 +24,8 @@ _testmain.go
 *.bolt
 
 /conf.json
-/data/
-/logs/
+/data
+/logs
 /scripts/backup-conf.json
 /server/server
 /pipelines/crawler/crawler
