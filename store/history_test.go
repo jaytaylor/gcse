@@ -20,6 +20,7 @@ func TestUpdateReadDeletePackageHistory(t *testing.T) {
 		path     = "gcse"
 		foundWay = "testing"
 	)
+
 	assert.NoError(t, UpdatePackageHistory(site, path, func(info *gpb.HistoryInfo) error {
 		assert.Equal(t, "info", info, &gpb.HistoryInfo{})
 		info.FoundWay = foundWay
@@ -27,6 +28,7 @@ func TestUpdateReadDeletePackageHistory(t *testing.T) {
 	}))
 	h, err := ReadPackageHistory(site, path)
 	assert.NoError(t, err)
+	t.Logf("JJJ: %# v", h)
 	assert.Equal(t, "h", h, &gpb.HistoryInfo{FoundWay: foundWay})
 
 	assert.NoError(t, DeletePackageHistory(site, path))
@@ -42,6 +44,7 @@ func TestAppendPackageEvent(t *testing.T) {
 		path     = "gcse"
 		foundWay = "test"
 	)
+
 	// Insert a found only event, no action.
 	foundTm := time.Now()
 	foundTs, _ := ptypes.TimestampProto(foundTm)
@@ -92,6 +95,7 @@ func TestUpdateReadDeletePersonHistory(t *testing.T) {
 		id       = "daviddengcn"
 		foundWay = "testing"
 	)
+
 	assert.NoError(t, UpdatePersonHistory(site, id, func(info *gpb.HistoryInfo) error {
 		assert.Equal(t, "info", info, &gpb.HistoryInfo{})
 		info.FoundWay = foundWay
@@ -114,6 +118,7 @@ func TestSaveSnapshot(t *testing.T) {
 		path     = "gcse"
 		foundWay = "testing"
 	)
+
 	assert.NoError(t, UpdatePackageHistory(site, path, func(info *gpb.HistoryInfo) error {
 		assert.Equal(t, "info", info, &gpb.HistoryInfo{})
 		info.FoundWay = foundWay

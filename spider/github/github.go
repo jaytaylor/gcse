@@ -24,11 +24,11 @@ import (
 	gpb "github.com/daviddengcn/gcse/shared/proto"
 )
 
-var ErrInvalidPackage = errors.New("the package is not a Go package")
-
-var ErrInvalidRepository = errors.New("the repository is not found")
-
-var ErrRateLimited = errors.New("Github rate limited")
+var (
+	ErrInvalidPackage    = errors.New("the package is not a Go package")
+	ErrInvalidRepository = errors.New("the repository is not found")
+	ErrRateLimited       = errors.New("Github rate limited")
+)
 
 type Spider struct {
 	client *github.Client
@@ -137,7 +137,7 @@ func (s *Spider) ReadUser(ctx context.Context, name string) (*User, error) {
 	return user, nil
 }
 
-func (s *Spider) ReadRepository(ctx context.Context, user, name string) (*gpb.RepoInfo, error) {
+func (s *Spider) ReadRepository(ctx context.Context, user string, name string) (*gpb.RepoInfo, error) {
 	s.waitForRate()
 	repo, _, err := s.client.Repositories.Get(ctx, user, name)
 	if err != nil {
@@ -149,7 +149,7 @@ func (s *Spider) ReadRepository(ctx context.Context, user, name string) (*gpb.Re
 	return repoInfoFromGithub(repo), nil
 }
 
-func (s *Spider) getFile(ctx context.Context, user, repo, path string) (string, error) {
+func (s *Spider) getFile(ctx context.Context, user string, repo, path string) (string, error) {
 	s.waitForRate()
 	// TODO switch to DownloadContents
 	c, _, _, err := s.client.Repositories.GetContents(ctx, user, repo, path, nil)
@@ -224,7 +224,7 @@ func parseGoFile(path string, body string, info *gpb.GoFileInfo) {
 	}
 }
 
-func calcFullPath(user, repo, path, fn string) string {
+func calcFullPath(user string, repo string, path string, fn string) string {
 	full := "github.com/" + user + "/" + repo
 	if !strings.HasPrefix(path, "/") {
 		full += "/"
@@ -278,7 +278,7 @@ type Package struct {
 }
 
 // Even an error is returned, the folders may still contain useful elements.
-func (s *Spider) ReadPackage(ctx context.Context, user, repo, path string) (*Package, []*gpb.FolderInfo, error) {
+func (s *Spider) ReadPackage(ctx context.Context, user string, repo string, path string) (*Package, []*gpb.FolderInfo, error) {
 	s.waitForRate()
 	_, cs, _, err := s.client.Repositories.GetContents(ctx, user, repo, path, nil)
 	if err != nil {
@@ -390,7 +390,7 @@ func (s *Spider) SearchRepositories(ctx context.Context, q string) ([]github.Rep
 	return res.Repositories, nil
 }
 
-func (s *Spider) RepoBranchSHA(ctx context.Context, owner, repo, branch string) (sha string, err error) {
+func (s *Spider) RepoBranchSHA(ctx context.Context, owner string, repo string, branch string) (sha string, err error) {
 	if err := s.waitForRate(); err != nil {
 		return "", err
 	}
@@ -407,7 +407,7 @@ func (s *Spider) RepoBranchSHA(ctx context.Context, owner, repo, branch string) 
 	return stringsp.Get(b.Commit.SHA), nil
 }
 
-func (s *Spider) getTree(ctx context.Context, owner, repo, sha string, recursive bool) (*github.Tree, error) {
+func (s *Spider) getTree(ctx context.Context, owner string, repo string, sha string, recursive bool) (*github.Tree, error) {
 	if err := s.waitForRate(); err != nil {
 		return nil, err
 	}
@@ -424,7 +424,7 @@ func (s *Spider) getTree(ctx context.Context, owner, repo, sha string, recursive
 // ReadRepo reads all packages of a repository.
 // For pkg given to f, it will not be reused.
 // path in f is relative to the repository path.
-func (s *Spider) ReadRepo(ctx context.Context, user, repo, sha string, f func(path string, pkg *gpb.Package) error) error {
+func (s *Spider) ReadRepo(ctx context.Context, user string, repo string, sha string, f func(path string, pkg *gpb.Package) error) error {
 	tree, err := s.getTree(ctx, user, repo, sha, true)
 	if err != nil {
 		return err

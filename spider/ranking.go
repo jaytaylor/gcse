@@ -9,7 +9,7 @@ import (
 	"github.com/golangplus/strings"
 	"github.com/golangplus/time"
 
-	gpb "github.com/daviddengcn/gcse/shared/proto"
+	gcsepb "github.com/daviddengcn/gcse/shared/proto"
 )
 
 const (
@@ -79,7 +79,7 @@ func (s PackageStatus) String() string {
 	return "-"
 }
 
-func repoInfoAvailable(info *gpb.RepoInfo) bool {
+func repoInfoAvailable(info *gcsepb.RepoInfo) bool {
 	if info == nil {
 		return false
 	}
@@ -87,7 +87,7 @@ func repoInfoAvailable(info *gpb.RepoInfo) bool {
 	return t.After(time.Now().Add(-maxRepoInfoDue))
 }
 
-func folderInfoAvailable(info *gpb.FolderInfo) bool {
+func folderInfoAvailable(info *gcsepb.FolderInfo) bool {
 	if info == nil {
 		return false
 	}
@@ -95,7 +95,7 @@ func folderInfoAvailable(info *gpb.FolderInfo) bool {
 	return t.After(time.Now().Add(-maxFolderInfoDue))
 }
 
-func CheckPackageStatus(pkg *gpb.PackageInfo, repo *gpb.RepoInfo) PackageStatus {
+func CheckPackageStatus(pkg *gcsepb.PackageInfo, repo *gcsepb.RepoInfo) PackageStatus {
 	if pkg.CrawlingInfo == nil {
 		return OutOfDate
 	}

@@ -17,6 +17,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	glgddo "github.com/golang/gddo/doc"
 	"github.com/golangplus/bytes"
 	"github.com/golangplus/errors"
 	"github.com/golangplus/strings"
@@ -30,11 +31,9 @@ import (
 	"github.com/daviddengcn/go-easybi"
 	"github.com/daviddengcn/go-index"
 	"github.com/daviddengcn/go-villa"
-	"github.com/daviddengcn/sophie"
 	"github.com/golang/gddo/gosrc"
 
 	gpb "github.com/daviddengcn/gcse/shared/proto"
-	glgddo "github.com/golang/gddo/doc"
 )
 
 const (
@@ -53,7 +52,40 @@ const (
 			4    A bug of checking CrawlerVersion is fixed
 	*/
 	CrawlerVersion = 5
+
+	maxRepoInfoAge = 2 * timep.Day
 )
+
+var (
+	GithubSpider *github.Spider
+
+	ErrPackageNotModifed = errors.New("package not modified")
+	ErrInvalidPackage    = errors.New("invalid package")
+
+	patSingleReturn = regexp.MustCompile(`\b\n\b`)
+)
+
+func init() {
+	gob.RegisterName("main.CrawlingEntry", CrawlingEntry{})
+}
+
+// Package stores information from the crawler.
+type Package struct {
+	Package     string
+	Name        string
+	Synopsis    string
+	Doc         string
+	ProjectURL  string
+	StarCount   int
+	ReadmeFn    string
+	ReadmeData  string
+	Imports     []string
+	TestImports []string
+	Exported    []string // Exported tokens(funcs/types).
+
+	References []string
+	Etag       string
+}
 
 // AppendPackages appends a list packages to imports folder for crawler
 // backend to read
@@ -83,6 +115,7 @@ func ReadPackages(segm utils.Segment) ([]string, error) {
 
 type BlackRequest struct {
 	sync.RWMutex
+
 	badUrls map[string]http.Response
 	client  doc.HttpClient
 }
@@ -97,7 +130,7 @@ func (br *BlackRequest) Do(req *http.Request) (*http.Response, error) {
 	r, ok := br.badUrls[u]
 	br.RUnlock()
 	if ok {
-		log.Printf("%s was found in 500 blacklist, return it directly", u)
+		log.Printf("%v was found in 500 blacklist, return it directly", u)
 		r.Body = bytesp.NewPSlice(nil)
 		return &r, nil
 	}
@@ -106,7 +139,7 @@ func (br *BlackRequest) Do(req *http.Request) (*http.Response, error) {
 		return resp, err
 	}
 	if resp.StatusCode == 500 {
-		log.Printf("Put %s into 500 blacklist", u)
+		log.Printf("Put %v into 500 blacklist", u)
 		r := *resp
 		r.Body = nil
 		br.Lock()
@@ -137,7 +170,7 @@ func GenHttpClient(proxy string) doc.HttpClient {
 }
 
 func HostOfPackage(pkg string) string {
-	u, err := url.Parse("http://" + pkg)
+	u, err := url.Parse(fmt.Sprintf("http://%v", pkg))
 	if err != nil {
 		return ""
 	}
@@ -154,10 +187,12 @@ func FullProjectOfPackage(pkg string) string {
 		if len(parts) > 2 {
 			parts = parts[:2]
 		}
+
 	case "github.com", "code.google.com", "bitbucket.org", "labix.org":
 		if len(parts) > 3 {
 			parts = parts[:3]
 		}
+
 	case "golanger.com":
 		return "golanger.com/golangers"
 
@@ -168,8 +203,10 @@ func FullProjectOfPackage(pkg string) string {
 		if len(parts) > 1 {
 			parts = parts[:2]
 		}
+
 	case "cgl.tideland.biz":
 		return "cgl.tideland.biz/tcgl"
+
 	default:
 		if len(parts) > 3 {
 			parts = parts[:3]
@@ -178,32 +215,7 @@ func FullProjectOfPackage(pkg string) string {
 	return strings.Join(parts, "/")
 }
 
-// Package stores information from crawler
-type Package struct {
-	Package     string
-	Name        string
-	Synopsis    string
-	Doc         string
-	ProjectURL  string
-	StarCount   int
-	ReadmeFn    string
-	ReadmeData  string
-	Imports     []string
-	TestImports []string
-	Exported    []string // exported tokens(funcs/types)
-
-	References []string
-	Etag       string
-}
-
-var (
-	ErrPackageNotModifed = errors.New("package not modified")
-	ErrInvalidPackage    = errors.New("invalid package")
-)
-
-var patSingleReturn = regexp.MustCompile(`\b\n\b`)
-
-func ReadmeToText(fn, data string) string {
+func ReadmeToText(fn string, data string) string {
 	fn = strings.ToLower(fn)
 	if strings.HasSuffix(fn, ".md") || strings.HasSuffix(fn, ".markdown") ||
 		strings.HasSuffix(fn, ".mkd") {
@@ -219,11 +231,11 @@ func ReadmeToText(fn, data string) string {
 }
 
 func Plusone(httpClient doc.HttpClient, url string) (int, error) {
-	req, err := http.NewRequest("POST",
+	req, err := http.NewRequest(
+		"POST",
 		"https://clients6.google.com/rpc?key=AIzaSyCKSbrvQasunBoV16zDH9R33D88CeLr9gQ",
-		bytesp.NewPSlice([]byte(
-			`[{"method":"pos.plusones.get","id":"p","params":{"nolog":true,"id": "`+
-				url+`","source":"widget","userId":"@viewer","groupId":"@self"},"jsonrpc":"2.0","key":"p","apiVersion":"v1"}]`)))
+		bytesp.NewPSlice([]byte(fmt.Sprintf(`[{"method":"pos.plusones.get","id":"p","params":{"nolog":true,"id": "%v","source":"widget","userId":"@viewer","groupId":"@self"},"jsonrpc":"2.0","key":"p","apiVersion":"v1"}]`, url))),
+	)
 	if err != nil {
 		return 0, errorsp.WithStacksAndMessage(err, "new request for crawling g+ of %v failed", url)
 	}
@@ -250,9 +262,9 @@ func Plusone(httpClient doc.HttpClient, url string) (int, error) {
 	return int(0.5 + v[0].Result.Metadata.GlobalCounts.Count), nil
 }
 
-func LikeButton(httpClient doc.HttpClient, Url string) (int, error) {
-	req, err := http.NewRequest("GET", "http://graph.facebook.com/?"+
-		url.Values{"ids": {Url}}.Encode(), nil)
+func LikeButton(httpClient doc.HttpClient, u string) (int, error) {
+	graphURL := fmt.Sprintf("http://graph.facebook.com/?%v", url.Values{"ids": {u}}.Encode())
+	req, err := http.NewRequest("GET", graphURL, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -261,6 +273,7 @@ func LikeButton(httpClient doc.HttpClient, Url string) (int, error) {
 		return 0, err
 	}
 	defer resp.Body.Close()
+
 	dec := json.NewDecoder(resp.Body)
 	var v map[string]struct {
 		Shares int
@@ -268,7 +281,7 @@ func LikeButton(httpClient doc.HttpClient, Url string) (int, error) {
 	if err := dec.Decode(&v); err != nil {
 		return 0, err
 	}
-	return v[Url].Shares, nil
+	return v[u].Shares, nil
 }
 
 func fuseStars(a, b int) int {
@@ -301,6 +314,7 @@ func newDocGet(ctx context.Context, httpClient doc.HttpClient, pkg string, etag 
 		}
 		return nil, err
 	}
+
 	return &doc.Package{
 		ImportPath:  gp.ImportPath,
 		ProjectRoot: gp.ProjectRoot,
@@ -345,11 +359,7 @@ func newDocGet(ctx context.Context, httpClient doc.HttpClient, pkg string, etag 
 	}, nil
 }
 
-var GithubSpider *github.Spider
-
-const maxRepoInfoAge = 2 * timep.Day
-
-func CrawlRepoInfo(ctx context.Context, site, user, name string) *gpb.RepoInfo {
+func CrawlRepoInfo(ctx context.Context, site string, user string, name string) *gpb.RepoInfo {
 	// Check cache in store.
 	path := user + "/" + name
 	p, err := store.ReadPackage(site, path)
@@ -383,7 +393,7 @@ func CrawlRepoInfo(ctx context.Context, site, user, name string) *gpb.RepoInfo {
 	return ri
 }
 
-func getGithubStars(ctx context.Context, user, name string) int {
+func getGithubStars(ctx context.Context, user string, name string) int {
 	r := CrawlRepoInfo(ctx, "github.com", user, name)
 	if r != nil {
 		return int(r.Stars)
@@ -423,14 +433,16 @@ func getGithub(ctx context.Context, pkg string) (*doc.Package, []*gpb.FolderInfo
 func CrawlPackage(ctx context.Context, httpClient doc.HttpClient, pkg string, etag string) (p *Package, folders []*gpb.FolderInfo, err error) {
 	defer func() {
 		if perr := recover(); perr != nil {
-			p, folders, err = nil, nil, errorsp.NewWithStacks("Panic when crawling package %s: %v", pkg, perr)
+			p, folders, err = nil, nil, errorsp.NewWithStacks("Recovered from panic while crawling package %v: %v", pkg, perr)
 		}
 	}()
+
 	var pdoc *doc.Package
 
 	if strings.Contains(pkg, "/vendor/") || strings.HasPrefix(pkg, "thezombie.net") {
 		return nil, folders, ErrInvalidPackage
 	}
+
 	if strings.HasPrefix(pkg, "github.com/") {
 		if GithubSpider != nil {
 			pdoc, folders, err = getGithub(ctx, pkg)
@@ -446,6 +458,7 @@ func CrawlPackage(ctx context.Context, httpClient doc.HttpClient, pkg string, et
 	if err != nil {
 		return nil, folders, errorsp.WithStacks(err)
 	}
+
 	if pdoc.StarCount < 0 {
 		// if starcount is not fetched, choose fusion of Plusone and
 		// Like Button
@@ -458,6 +471,7 @@ func CrawlPackage(ctx context.Context, httpClient doc.HttpClient, pkg string, et
 		}
 		pdoc.StarCount = fuseStars(plus, like)
 	}
+
 	readmeFn, readmeData := "", ""
 	for fn, data := range pdoc.ReadmeFiles {
 		readmeFn, readmeData = strings.TrimSpace(fn),
@@ -468,7 +482,8 @@ func CrawlPackage(ctx context.Context, httpClient doc.HttpClient, pkg string, et
 			readmeFn, readmeData = "", ""
 		}
 	}
-	// try find synopsis from readme
+
+	// Try find synopsis from readme.
 	if pdoc.Doc == "" && pdoc.Synopsis == "" {
 		pdoc.Synopsis = godoc.Synopsis(ReadmeToText(readmeFn, readmeData))
 	}
@@ -490,6 +505,7 @@ func CrawlPackage(ctx context.Context, httpClient doc.HttpClient, pkg string, et
 	for _, t := range pdoc.Types {
 		exported.Add(t.Name)
 	}
+
 	return &Package{
 		Package:    pdoc.ImportPath,
 		Name:       pdoc.Name,
@@ -510,22 +526,8 @@ func CrawlPackage(ctx context.Context, httpClient doc.HttpClient, pkg string, et
 	}, folders, nil
 }
 
-func IdOfPerson(site, username string) string {
-	return fmt.Sprintf("%s:%s", site, username)
-}
-
-func ParsePersonId(id string) (site, username string) {
-	parts := strings.Split(id, ":")
-	return parts[0], parts[1]
-}
-
-type Person struct {
-	Id       string
-	Packages []string
-}
-
 func CrawlPerson(ctx context.Context, httpClient doc.HttpClient, id string) (*Person, error) {
-	site, user := ParsePersonId(id)
+	site, user := ParsePersonID(id)
 	switch site {
 	case "github.com":
 		u, err := GithubSpider.ReadUser(ctx, user)
@@ -562,136 +564,4 @@ func CrawlPerson(ctx context.Context, httpClient doc.HttpClient, id string) (*Pe
 func IsBadPackage(err error) bool {
 	err = villa.DeepestNested(errorsp.Cause(err))
 	return doc.IsNotFound(err) || err == ErrInvalidPackage || err == github.ErrInvalidPackage
-}
-
-type DocDB interface {
-	Sync() error
-	Export(root villa.Path, kind string) error
-
-	Get(key string, data interface{}) bool
-	Put(key string, data interface{})
-	Delete(key string)
-	Iterate(output func(key string, val interface{}) error) error
-}
-
-type PackedDocDB struct {
-	*MemDB
-}
-
-func (db PackedDocDB) Get(key string, data interface{}) bool {
-	var bs bytesp.Slice
-	if ok := db.MemDB.Get(key, (*[]byte)(&bs)); !ok {
-		return false
-	}
-	dec := gob.NewDecoder(&bs)
-	if err := dec.Decode(data); err != nil {
-		log.Printf("Get %s failed: %v", key, err)
-		return false
-	}
-	return true
-}
-
-func (db PackedDocDB) Put(key string, data interface{}) {
-	var bs bytesp.Slice
-	enc := gob.NewEncoder(&bs)
-	if err := enc.Encode(data); err != nil {
-		log.Printf("Put %s failed: %v", key, err)
-		return
-	}
-	db.MemDB.Put(key, []byte(bs))
-}
-
-func (db PackedDocDB) Iterate(
-	output func(key string, val interface{}) error) error {
-	return db.MemDB.Iterate(func(key string, val interface{}) error {
-		dec := gob.NewDecoder(bytesp.NewPSlice(val.([]byte)))
-		var info DocInfo
-		if err := dec.Decode(&info); err != nil {
-			log.Printf("Decode %s failed: %v", key, err)
-			db.Get(key, &info)
-			return err
-		}
-		return output(key, info)
-	})
-}
-
-type CrawlingEntry struct {
-	ScheduleTime time.Time
-	// if gcse.CrawlerVersion is different from this value, etag is ignored
-	Version int
-	Etag    string
-}
-
-func (c *CrawlingEntry) WriteTo(w sophie.Writer) error {
-	if err := sophie.Time(c.ScheduleTime).WriteTo(w); err != nil {
-		return err
-	}
-	if err := sophie.VInt(c.Version).WriteTo(w); err != nil {
-		return err
-	}
-	if err := sophie.String(c.Etag).WriteTo(w); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (c *CrawlingEntry) ReadFrom(r sophie.Reader, l int) error {
-	if err := (*sophie.Time)(&c.ScheduleTime).ReadFrom(r, -1); err != nil {
-		return err
-	}
-	if err := (*sophie.VInt)(&c.Version).ReadFrom(r, -1); err != nil {
-		return err
-	}
-	if err := (*sophie.String)(&c.Etag).ReadFrom(r, -1); err != nil {
-		return err
-	}
-	return nil
-}
-
-const (
-	// whole document updated
-	NDA_UPDATE = iota
-	// only stars updated
-	NDA_STARS
-	// deleted
-	NDA_DEL
-	// Original document
-	NDA_ORIGINAL
-)
-
-/*
- * If Action equals NDA_DEL, DocInfo is undefined.
- */
-type NewDocAction struct {
-	Action sophie.VInt
-	DocInfo
-}
-
-// Returns a new instance of *NewDocAction as a Sophier
-func NewNewDocAction() sophie.Sophier {
-	return new(NewDocAction)
-}
-
-func (nda *NewDocAction) WriteTo(w sophie.Writer) error {
-	if err := nda.Action.WriteTo(w); err != nil {
-		return err
-	}
-	if nda.Action == NDA_DEL {
-		return nil
-	}
-	return nda.DocInfo.WriteTo(w)
-}
-
-func (nda *NewDocAction) ReadFrom(r sophie.Reader, l int) error {
-	if err := nda.Action.ReadFrom(r, -1); err != nil {
-		return errorsp.WithStacks(err)
-	}
-	if nda.Action == NDA_DEL {
-		return nil
-	}
-	return errorsp.WithStacks(nda.DocInfo.ReadFrom(r, -1))
-}
-
-func init() {
-	gob.RegisterName("main.CrawlingEntry", CrawlingEntry{})
 }

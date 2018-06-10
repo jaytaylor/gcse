@@ -276,7 +276,7 @@ func main() {
 
 	kvPerson.Clean()
 	if err := generateCrawlEntries(cDB.PersonDB, func(id string) string {
-		site, _ := gcse.ParsePersonId(id)
+		site, _ := gcse.ParsePersonID(id)
 		return site
 	}, kvPerson, nil); err != nil {
 		log.Fatalf("generateCrawlEntries %v failed: %v", kvPerson.Path, err)

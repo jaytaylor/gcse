@@ -12,11 +12,13 @@ import (
 	"github.com/daviddengcn/gcse/configs"
 	"github.com/daviddengcn/gcse/store"
 
-	sppb "github.com/daviddengcn/gcse/proto/spider"
+	gcsepb "github.com/daviddengcn/gcse/shared/proto"
 )
 
 func init() {
-	configs.SetTestingDataPath()
+	if err := configs.SetTestingDataPath(); err != nil {
+		panic(err)
+	}
 }
 
 func TestDoFill(t *testing.T) {
@@ -36,7 +38,7 @@ func TestDoFill(t *testing.T) {
 	h, err := store.ReadPackageHistory(site, path)
 	assert.NoError(t, err)
 	ts, _ := ptypes.TimestampProto(tm)
-	assert.Equal(t, "h", h, &sppb.HistoryInfo{
+	assert.Equal(t, "h", h, &gcsepb.HistoryInfo{
 		FoundTime: ts,
 		FoundWay:  "unknown",
 	})

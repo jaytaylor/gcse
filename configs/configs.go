@@ -165,6 +165,7 @@ func SetTestingDataPath() error {
 	}
 
 	log.Printf("New DataRoot (for testing): %v", DataRoot)
+
 	return nil
 }
 

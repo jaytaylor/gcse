@@ -124,7 +124,7 @@ func (cdb *CrawlerDB) SchedulePerson(id string, sTime time.Time) error {
 // AppendPerson appends a person to the PersonDB, schedules to crawl
 // immediately for a new person
 func (cdb *CrawlerDB) AppendPerson(site, username string) bool {
-	id := IdOfPerson(site, username)
+	id := SitePersonID(site, username)
 
 	var ent CrawlingEntry
 	exists := cdb.PersonDB.Get(id, &ent)

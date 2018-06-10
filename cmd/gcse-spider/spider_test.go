@@ -18,7 +18,9 @@ import (
 )
 
 func init() {
-	configs.SetTestingDataPath()
+	if err := configs.SetTestingDataPath(); err != nil {
+		panic(err)
+	}
 }
 
 func TestShouldCrawlLater(t *testing.T) {

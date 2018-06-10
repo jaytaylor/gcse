@@ -1,12 +1,13 @@
 package github
 
 import (
+	"context"
 	"testing"
 
 	"github.com/golangplus/errors"
 	"github.com/golangplus/testing/assert"
 
-	sppb "github.com/daviddengcn/gcse/proto/spider"
+	gcsepb "github.com/daviddengcn/gcse/shared/proto"
 )
 
 //func TestReadUser(t *testing.T) {
@@ -55,15 +56,17 @@ import (
 //}
 
 func TestParseGoFile(t *testing.T) {
-	fi := &sppb.GoFileInfo{}
-	parseGoFile("g.go", []byte(`
+	fi := &gcsepb.GoFileInfo{}
+	parseGoFile("g.go", `
 package main
 `+`// +build ignore
-	`), fi)
-	assert.Equal(t, "fi", fi, &sppb.GoFileInfo{Status: sppb.GoFileInfo_ShouldIgnore})
+	`, fi)
+	assert.Equal(t, "fi", fi, &gcsepb.GoFileInfo{Status: gcsepb.GoFileInfo_ShouldIgnore})
 }
 
 func TestRepoBranchSHA(t *testing.T) {
+	ctx := context.Background()
+
 	s := NewSpiderWithContents(map[string]string{
 		"/repos/daviddengcn/repo-branch-sha/branches/master": `
 			{
@@ -74,18 +77,23 @@ func TestRepoBranchSHA(t *testing.T) {
 			}
 		`,
 	})
-	sha, err := s.RepoBranchSHA("daviddengcn", "repo-branch-sha", "master")
+
+	sha, err := s.RepoBranchSHA(ctx, "daviddengcn", "repo-branch-sha", "master")
 	assert.NoError(t, err)
 	assert.Equal(t, "sha", sha, "sha-1")
 }
 
 func TestRepoBranchSHA_NotFound(t *testing.T) {
+	ctx := context.Background()
+
 	s := NewSpiderWithContents(map[string]string{})
-	_, err := s.RepoBranchSHA("noone", "nothing", "master")
+	_, err := s.RepoBranchSHA(ctx, "noone", "nothing", "master")
 	assert.Equal(t, "err", errorsp.Cause(err), ErrInvalidRepository)
 }
 
 func TestReadRepo(t *testing.T) {
+	ctx := context.Background()
+
 	s := NewSpiderWithContents(map[string]string{
 		"/repos/daviddengcn/readrepo/branches/master": `
 			{
@@ -133,19 +141,19 @@ func TestReadRepo(t *testing.T) {
 			}
 		`,
 	})
-	pkgs := make(map[string]*sppb.Package)
-	assert.NoError(t, s.ReadRepo("daviddengcn", "readrepo", "sha-1", func(path string, pkg *sppb.Package) error {
+	pkgs := make(map[string]*gcsepb.Package)
+	assert.NoError(t, s.ReadRepo(ctx, "daviddengcn", "readrepo", "sha-1", func(path string, pkg *gcsepb.Package) error {
 		pkgs[path] = pkg
 		return nil
 	}))
-	assert.Equal(t, "pkgs", pkgs, map[string]*sppb.Package{
-		"": &sppb.Package{
+	assert.Equal(t, "pkgs", pkgs, map[string]*gcsepb.Package{
+		"": &gcsepb.Package{
 			Name:        "gcse",
 			Path:        "",
 			Imports:     []string{"github.com/daviddengcn/go-easybi"},
 			TestImports: []string{},
 		},
-		"/sub": &sppb.Package{
+		"/sub": &gcsepb.Package{
 			Name:        "gcse",
 			Path:        "/sub",
 			Imports:     []string{"github.com/daviddengcn/go-easybi"},
@@ -155,6 +163,8 @@ func TestReadRepo(t *testing.T) {
 }
 
 func TestReadRepo_NotFound(t *testing.T) {
+	ctx := context.Background()
+
 	s := NewSpiderWithContents(map[string]string{})
-	assert.Equal(t, "err", errorsp.Cause(s.ReadRepo("noone", "nothing", "sha-1", nil)), ErrInvalidRepository)
+	assert.Equal(t, "err", errorsp.Cause(s.ReadRepo(ctx, "noone", "nothing", "sha-1", nil)), ErrInvalidRepository)
 }

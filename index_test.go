@@ -2,15 +2,16 @@ package gcse
 
 import (
 	"io"
+	"os"
 	"path"
 	"testing"
 
-	"github.com/golangplus/strings"
-	"github.com/golangplus/testing/assert"
-
 	"github.com/daviddengcn/go-index"
+	"github.com/daviddengcn/go-villa"
 	"github.com/daviddengcn/sophie"
 	"github.com/daviddengcn/sophie/mr"
+	"github.com/golangplus/strings"
+	"github.com/golangplus/testing/assert"
 )
 
 func TestIndex(t *testing.T) {
@@ -19,6 +20,11 @@ func TestIndex(t *testing.T) {
 		package1 = "github.com/daviddengcn/gcse/indexer"
 		package2 = "github.com/daviddengcn/go-villa"
 	)
+
+	tmpPath := villa.Path(os.TempDir()).Join("gcse_index_testing")
+
+	// Cleanup after ourselves.
+	defer tmpPath.RemoveAll()
 
 	docs := []DocInfo{
 		{
@@ -62,10 +68,10 @@ func TestIndex(t *testing.T) {
 				},
 			}, nil
 		},
-	}, "./tmp")
+	}, tmpPath.S())
 	assert.NoErrorOrDie(t, err)
 
-	hitsArr, err := index.OpenConstArray(path.Join("./tmp", HitsArrFn))
+	hitsArr, err := index.OpenConstArray(path.Join(tmpPath.S(), HitsArrFn))
 	for _, doc := range docs {
 		idx := -1
 		ts.Search(index.SingleFieldQuery(IndexPkgField, doc.Package), func(docID int32, data interface{}) error {

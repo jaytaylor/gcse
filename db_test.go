@@ -3,9 +3,8 @@ package gcse
 import (
 	"testing"
 
-	"github.com/golangplus/testing/assert"
-
 	"github.com/daviddengcn/go-villa"
+	"github.com/golangplus/testing/assert"
 )
 
 func TestMemDB_Bug_Sync(t *testing.T) {
@@ -14,10 +13,12 @@ func TestMemDB_Bug_Sync(t *testing.T) {
 		path.Remove()
 	}
 
+	// Cleanup after ourselves.
+	defer villa.Path(path.S() + ".new").RemoveAll()
+
 	db := NewMemDB(".", "testmemdb")
 	db.Put("s", 1)
-	err := db.Sync()
-	if err != nil {
+	if err := db.Sync(); err != nil {
 		t.Error(err)
 	}
 
@@ -38,6 +39,9 @@ func TestMemDB_Recover(t *testing.T) {
 		path.Remove()
 	}
 
+	// Cleanup after ourselves.
+	defer villa.Path(path.S() + ".new").RemoveAll()
+
 	db := NewMemDB(".", "testmemdb")
 	db.Put("s", 1)
 	if err := db.Sync(); err != nil {
@@ -55,6 +59,7 @@ func TestMemDB_Recover(t *testing.T) {
 		t.Error(err)
 		return
 	}
+
 	var vl int
 	if ok := db.Get("s", &vl); !ok {
 		t.Error("Recover failed!")

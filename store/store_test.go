@@ -14,7 +14,9 @@ import (
 )
 
 func init() {
-	configs.SetTestingDataPath()
+	if err := configs.SetTestingDataPath(); err != nil {
+		panic(err)
+	}
 }
 
 func cleanDatabase(t *testing.T) {
