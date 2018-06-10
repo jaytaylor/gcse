@@ -85,6 +85,8 @@ type User struct {
 }
 
 func (s *Spider) waitForRate() error {
+	// TODO: Implement proper GH API check for remaining calls.
+
 	time.Sleep(time.Second)
 	return nil
 	//	r := s.client.Rate()

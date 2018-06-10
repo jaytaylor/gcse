@@ -35,6 +35,17 @@ BSD license.
 
 TODOs
 -----
+
 [ ] Multiple concurrent crawler jobs (so it won't take _years_ to build a complete index).
+
 [ ] Fix markdown generation for displaying package READMEs (or highlights) in HTML.
 
+[ ] Better log library.
+
+[ ] Better flags for all command-line apps.
+
+[ ] Proper github rate-limiting detection in spider/github package.
+
+[ ] Mark all github / bitbucket specific spots and mark them, and interfacify.
+
+[ ] Implement support for gitlab-hosted repositories.
