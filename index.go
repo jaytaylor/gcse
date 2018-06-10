@@ -187,8 +187,12 @@ func Index(docDB mr.Input, outDir string) (*index.TokenSetSearcher, error) {
 		if err != nil {
 			return nil, err
 		}
-		var pkg sophie.RawString
-		var hitInfo HitInfo
+
+		var (
+			pkg     sophie.RawString
+			hitInfo HitInfo
+		)
+
 		for {
 			if err := it.Next(&pkg, &hitInfo.DocInfo); err != nil {
 				if errorsp.Cause(err) == io.EOF {
@@ -205,15 +209,17 @@ func Index(docDB mr.Input, outDir string) (*index.TokenSetSearcher, error) {
 			hitInfo.TestImportedLen = len(hitInfo.TestImported)
 			realTestImported := excludeImports(testImportsDB.IdsOfToken(hitInfo.Package), hitInfo.Imported)
 
-			prj := FullProjectOfPackage(hitInfo.Package)
-			impPrjsCnt := len(prjImportsDB.IdsOfToken(prj))
-			var assignedStarCount = float64(prjStars[prj].StarCount)
+			var (
+				prj               = FullProjectOfPackage(hitInfo.Package)
+				impPrjsCnt        = len(prjImportsDB.IdsOfToken(prj))
+				assignedStarCount = float64(prjStars[prj].StarCount)
+			)
+
 			if prj != hitInfo.Package {
 				if impPrjsCnt == 0 {
 					assignedStarCount = 0
 				} else {
-					perStarCount :=
-						float64(prjStars[prj].StarCount) / float64(impPrjsCnt)
+					perStarCount := float64(prjStars[prj].StarCount) / float64(impPrjsCnt)
 
 					var projects stringsp.Set
 					for _, imp := range hitInfo.Imported {

@@ -7,7 +7,7 @@ import (
 	"github.com/daviddengcn/gcse/configs"
 )
 
-// processing sumitted packages (from go-search.org/add path)
+// processImports processes sumitted packages (from go-search.org/add path).
 func processImports() error {
 	dones, err := configs.ImportSegments().ListDones()
 	if err != nil {

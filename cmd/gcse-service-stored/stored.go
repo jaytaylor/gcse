@@ -34,10 +34,10 @@ func main() {
 
 	flag.Parse()
 
-	glog.Infof("Listening to %s", *addr)
+	glog.Infof("Starting listener on %s", *addr)
 	lis, err := net.Listen("tcp", *addr)
 	if err != nil {
-		glog.Fatalf("failed to listen: %v", err)
+		glog.Fatalf("Failed to start listener: %v", err)
 	}
 	grpcServer := grpc.NewServer()
 	gpb.RegisterStoreServiceServer(grpcServer, &server{})

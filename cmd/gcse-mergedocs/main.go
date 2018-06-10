@@ -26,8 +26,7 @@ func main() {
 
 	var nonStorePackage *regexp.Regexp
 	if len(configs.NonStorePackageRegexps) > 0 {
-		nonStorePackage = regexp.MustCompile(
-			stringsp.FullJoin(configs.NonStorePackageRegexps, "(", ")|(", ")"))
+		nonStorePackage = regexp.MustCompile(stringsp.FullJoin(configs.NonStorePackageRegexps, "(", ")|(", ")"))
 	}
 
 	fpDataRoot := sophie.LocalFsPath(configs.DataRoot.S())
@@ -51,13 +50,15 @@ func main() {
 					NewKeyF: sophie.NewRawString,
 					NewValF: gcse.NewDocInfo,
 					MapF: func(key, val sophie.SophieWriter, c mr.PartCollector) error {
-						pkg := key.(*sophie.RawString).String()
-						di := val.(*gcse.DocInfo)
-						act := gcse.NewDocAction{
-							Action:  gcse.NDA_ORIGINAL,
-							DocInfo: *di,
-						}
-						part := gcse.CalcPackagePartition(pkg, gcse.DOCS_PARTS)
+						var (
+							pkg = key.(*sophie.RawString).String()
+							di  = val.(*gcse.DocInfo)
+							act = gcse.NewDocAction{
+								Action:  gcse.NDA_ORIGINAL,
+								DocInfo: *di,
+							}
+							part = gcse.CalcPackagePartition(pkg, gcse.DOCS_PARTS)
+						)
 						return c.CollectTo(part, key, &act)
 					},
 				}
@@ -67,8 +68,10 @@ func main() {
 				NewKeyF: sophie.NewRawString,
 				NewValF: gcse.NewNewDocAction,
 				MapF: func(key, val sophie.SophieWriter, c mr.PartCollector) error {
-					pkg := string(*key.(*sophie.RawString))
-					part := gcse.CalcPackagePartition(pkg, gcse.DOCS_PARTS)
+					var (
+						pkg  = string(*key.(*sophie.RawString))
+						part = gcse.CalcPackagePartition(pkg, gcse.DOCS_PARTS)
+					)
 					return c.CollectTo(part, key, val)
 				},
 			}

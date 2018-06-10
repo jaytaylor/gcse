@@ -109,14 +109,15 @@ func main() {
 	log.Printf("Using personal github token: %v", configs.CrawlerGithubPersonal)
 	gcse.GithubSpider = github.NewSpiderWithToken(configs.CrawlerGithubPersonal)
 
-	if db, err := bh.Open(configs.FileCacheBoltPath(), 0644, nil); err == nil {
-		log.Print("Using file cache!")
+	fileCachePath := configs.FileCacheBoltPath()
+	if db, err := bh.Open(fileCachePath, 0644, nil); err == nil {
+		log.Printf("Using file cache %q", fileCachePath)
 		gcse.GithubSpider.FileCache = spider.BoltFileCache{
 			DB:         db,
 			IncCounter: bi.Inc,
 		}
 	} else {
-		log.Printf("Open file cache failed: %v", err)
+		log.Fatalf("Error: failed to open bolt file cache %q: %v", fileCachePath, err)
 	}
 
 	cleanTempDir()
@@ -131,28 +132,30 @@ func main() {
 	httpClient := gcse.GenHttpClient("")
 
 	if *singlePerson != "" {
-		log.Printf("Crawling single person %s ...", *singlePerson)
+		log.Printf("Crawling single person %q ...", *singlePerson)
 		p, err := gcse.CrawlPerson(ctx, httpClient, *singlePerson)
 		if err != nil {
-			fmtp.Printfln("Crawling person %s failed: %v", *singlePerson, err)
+			fmtp.Printfln("Crawling person %q failed: %v", *singlePerson, err)
 		} else {
 			fmtp.Printfln("Person %s: %+v", *singlePerson, p)
 		}
-	}
-	if *singlePackage != "" {
-		log.Printf("Crawling single package %s ...", *singlePackage)
-		p, flds, err := gcse.CrawlPackage(ctx, httpClient, *singlePackage, *singleETag)
-		if err != nil {
-			fmtp.Printfln("Crawling package %s failed: %v\nfolders: %v", *singlePackage, err, flds)
-		} else {
-			fmtp.Printfln("Package %s: %+v\nfolders: %v", *singlePackage, p, flds)
-		}
-	}
-	if *singlePackage != "" || *singlePerson != "" {
+		log.Println("Crawler finished single person OK")
 		return
 	}
 
-	log.Println("crawler started...")
+	if *singlePackage != "" {
+		log.Printf("Crawling single package %q ...", *singlePackage)
+		p, flds, err := gcse.CrawlPackage(ctx, httpClient, *singlePackage, *singleETag)
+		if err != nil {
+			fmtp.Printfln("Crawling package %q failed: %v\nfolders: %v", *singlePackage, err, flds)
+		} else {
+			fmtp.Printfln("Package %s: %+v\nfolders: %v", *singlePackage, p, flds)
+		}
+		log.Println("Crawler finished single package OK")
+		return
+	}
+
+	log.Println("Crawler started...")
 
 	if err := configs.Mkdirs(); err != nil {
 		log.Fatalf("main: %s", err)
@@ -178,7 +181,7 @@ func main() {
 	fpNewDocs.Remove()
 
 	if err := processImports(); err != nil {
-		log.Printf("processImports failed: %v", err)
+		log.Fatalf("processImports failed: %v", err)
 	}
 
 	pkgEnd := make(chan error, 1)
@@ -192,7 +195,8 @@ func main() {
 	bi.Process()
 	syncDatabases()
 	if errPkg != nil || errPsn != nil {
-		log.Fatalf("Some job may failed, package: %v, person: %v", errPkg, errPsn)
+		log.Fatalf("Some job may have failed, package: %v, person: %v", errPkg, errPsn)
 	}
-	log.Println("crawler stopped...")
+
+	log.Println("Crawler finished OK")
 }

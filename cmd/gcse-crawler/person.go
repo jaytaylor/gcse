@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"log"
 	"math/rand"
 	"strings"
@@ -23,6 +23,10 @@ const (
 	DefaultPersonAge = 100 * timep.Day
 )
 
+var (
+	crawlPersonsOverdueLimit = time.Minute * 10
+)
+
 type PersonCrawler struct {
 	crawlerMapper
 
@@ -39,13 +43,14 @@ func pushPerson(p *gcse.Person) {
 }
 
 // OnlyMapper.Map
-func (pc *PersonCrawler) Map(key, val sophie.SophieWriter,
-	c []sophie.Collector) error {
+func (pc *PersonCrawler) Map(key, val sophie.SophieWriter, c []sophie.Collector) error {
 	ctx := context.Background()
+
 	if time.Now().After(AppStopTime) {
 		log.Printf("[Part %d] Timeout(key = %v), PersonCrawler returns EOM", pc.part, key)
 		return mr.EOM
 	}
+
 	id := string(*key.(*sophie.RawString))
 	// ent := val.(*gcse.CrawlingEntry)
 	log.Printf("[Part %d] Crawling person %v\n", pc.part, id)
@@ -92,9 +97,12 @@ func (pcf PeresonCrawlerFactory) NewMapper(part int) mr.OnlyMapper {
 
 // crawl packages, send error back to end
 func crawlPersons(httpClient doc.HttpClient, fpToCrawlPsn sophie.FsPath, end chan error) {
-	time.AfterFunc(configs.CrawlerDuePerRun+time.Minute*10, func() {
-		end <- errors.New("Crawling persons timeout!")
+	timeout := configs.CrawlerDuePerRun + crawlPersonsOverdueLimit
+
+	time.AfterFunc(timeout, func() {
+		end <- fmt.Errorf("Crawling persons timed out after %s", timeout)
 	})
+
 	end <- func() error {
 		job := mr.MapOnlyJob{
 			Source: []mr.Input{

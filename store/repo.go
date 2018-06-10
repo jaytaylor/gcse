@@ -62,7 +62,7 @@ func DeleteRepository(site, user, repo string) error {
 	})
 }
 
-func ForEachRepositorySite(f func(string) error) error {
+func ForEachRepositorySite(f func(site string) error) error {
 	return box.View(func(tx bh.Tx) error {
 		return tx.ForEach([][]byte{reposRoot}, func(_ bh.Bucket, k, v bytesp.Slice) error {
 			if v != nil {

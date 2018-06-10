@@ -16,18 +16,21 @@ import (
 )
 
 func help() {
-	fmt.Fprintln(os.Stderr, `Usage: dump docs|index|crawler [keys...]`)
+	fmt.Fprintf(os.Stderr, "Usage: %v docs|index|crawler [keys...]\n", os.Args[0])
 }
 
 func dumpDocs(keys []string) {
-	path := configs.DataRoot.Join(configs.FnDocs).S()
-	kvDir := kv.DirInput(sophie.LocalFsPath(path))
+	var (
+		path  = configs.DataRoot.Join(configs.FnDocs).S()
+		kvDir = kv.DirInput(sophie.LocalFsPath(path))
+	)
+
 	cnt, err := kvDir.PartCount()
 	if err != nil {
 		log.Fatalf("kvDir.PartCount() failed: %v", err)
 	}
 
-	parts := make(map[int]map[string]bool)
+	parts := map[int]map[string]bool{}
 	for _, key := range keys {
 		part := gcse.CalcPackagePartition(key, gcse.DOCS_PARTS)
 		if parts[part] == nil {
@@ -37,8 +40,11 @@ func dumpDocs(keys []string) {
 		parts[part][key] = true
 	}
 
-	var key sophie.RawString
-	var val gcse.DocInfo
+	var (
+		key sophie.RawString
+		val gcse.DocInfo
+	)
+
 	for part := 0; part < cnt; part++ {
 		if len(keys) > 0 && parts[part] == nil {
 			continue
@@ -85,22 +91,26 @@ func dumpIndex(keys []string) {
 	defer f.Close()
 
 	if err := db.Load(f); err != nil {
-		log.Fatalf("db.Open() failed: %v", err)
+		log.Fatalf("db.Load() failed: %v", err)
 	}
 
 	for _, key := range keys {
-		db.Search(index.SingleFieldQuery(gcse.IndexPkgField, key),
+		db.Search(
+			index.SingleFieldQuery(gcse.IndexPkgField, key),
 			func(docID int32, data interface{}) error {
 				info, _ := data.(gcse.HitInfo)
 				fmtp.Printfln("%s:%s -> %+v", gcse.IndexPkgField, key, info)
 				return nil
-			})
-		db.Search(index.SingleFieldQuery(gcse.IndexTextField, key),
+			},
+		)
+		db.Search(
+			index.SingleFieldQuery(gcse.IndexTextField, key),
 			func(docID int32, data interface{}) error {
 				info, _ := data.(gcse.HitInfo)
 				fmtp.Printfln("%s:%s -> %+v", gcse.IndexTextField, key, info)
 				return nil
-			})
+			},
+		)
 	}
 }
 
@@ -115,6 +125,7 @@ func dumpCrawler(keys []string) {
 		})
 		return
 	}
+
 	for _, key := range keys {
 		var ent gcse.CrawlingEntry
 		if cDB.PackageDB.Get(key, &ent) {
