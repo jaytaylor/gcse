@@ -78,11 +78,19 @@ func init() {
 
 	DataRoot = conf.Path("back.dbroot", DataRoot)
 
+	if err := Mkdirs(); err != nil {
+		log.Fatal(err)
+	}
+
 	ImportPath = DataRoot.Join("imports")
-	ImportPath.MkdirAll(0755)
+	if err := ImportPath.MkdirAll(0755); err != nil {
+		log.Fatal(err)
+	}
 
 	DBOutPath = DataRoot.Join("dbout")
-	DBOutPath.MkdirAll(0755)
+	if err := DBOutPath.MkdirAll(0755); err != nil {
+		log.Fatal(err)
+	}
 
 	CrawlByGodocApi = conf.Bool("crawler.godoc", CrawlByGodocApi)
 	CrawlGithubUpdate = conf.Bool("crawler.github_update", CrawlGithubUpdate)
@@ -145,11 +153,19 @@ func FileCacheBoltPath() string {
 	return DataRoot.Join("filecache.bolt").S()
 }
 
-func SetTestingDataPath() {
+func SetTestingDataPath() error {
 	DataRoot = villa.Path(os.TempDir()).Join("gcse_testing")
-	DataRoot.RemoveAll()
-	DataRoot.MkdirAll(0755)
-	log.Printf("DataRoot: %v", DataRoot)
+
+	if err := DataRoot.RemoveAll(); err != nil {
+		return err
+	}
+
+	if err := DataRoot.MkdirAll(0755); err != nil {
+		return err
+	}
+
+	log.Printf("New DataRoot (for testing): %v", DataRoot)
+	return nil
 }
 
 // Returns the segments imported from web site.
@@ -167,6 +183,23 @@ func IndexSegments() utils.Segments {
 
 // Mkdirs initializes the necessary directory structure.
 func Mkdirs() error {
+	paths := []villa.Path{
+		CrawlerDBPath(),
+		villa.Path(DocsDBPath()),
+		DataRoot.Join(fnCrawlerDB),
+		DataRoot.Join(fnCrawlerDB).Join(FnNewDocs),
+		DataRoot.Join(FnDocs),
+		DataRoot.Join(fnToCrawl),
+		DataRoot.Join(fnToCrawl).Join(FnPackage),
+		DataRoot.Join(fnToCrawl).Join(FnPerson),
+		villa.Path(DocsDBFsPath().Path),
+	}
+	for i, p := range paths {
+		if err := p.MkdirAll(0755); err != nil {
+			log.Fatalf("[i=%v] Error creating %s: %s", i, p, err)
+		}
+	}
+
 	fpDocs := DocsDBFsPath()
 	dirInput := kv.DirInput(fpDocs)
 	if err := os.MkdirAll(dirInput.Path, os.FileMode(int(0700))); err != nil {
