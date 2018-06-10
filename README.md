@@ -32,3 +32,9 @@ You'll need to perform the following steps to get the server up and running:
 LICENSE
 -------
 BSD license.
+
+TODOs
+-----
+[ ] Multiple concurrent crawler jobs (so it won't take _years_ to build a complete index).
+[ ] Fix markdown generation for displaying package READMEs (or highlights) in HTML.
+
