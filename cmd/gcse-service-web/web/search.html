@@ -1,62 +1,57 @@
-{{template "header.html" .UIUtils.Slice (.Q) ("search") }}
-{{template "searchbox.html" .UIUtils.Slice .Q false}}
+{{ template "header.html" .UIUtils.Slice (.Q) ("search")  }}
+{{ template "searchbox.html" .UIUtils.Slice .Q false }}
 <div class="content">
     <div class="info">
-        {{if .Results.TotalResults}}
-            Total {{.Results.TotalResults}} packages{{if .Results.Folded}} ({{.Results.Folded}} folded){{end}}
-        {{else}}
+        {{ if .Results.TotalResults }}
+            Total {{ .Results.TotalResults }} packages{{ if .Results.Folded }} ({{ .Results.Folded }} folded){{ end }}
+        {{ else }}
             No packages
-        {{end}}
-        related to <b>{{.Q}}</b>, {{.SearchTime}}
+        {{ end }}
+        related to <b>{{ .Q }}</b>, {{ .SearchTime }}
     </div>
     <ol class="list-group schres">
-        {{range .Results.Docs}}
-            <li>
-                <div class="title">
-                    <div class="num">{{.Index}}.</div><a target="_blank" href="/view?id={{.Package}}">{{if .MarkedName}}{{.MarkedName}}{{else}}({{.MarkedPackage}}){{end}}</a>
-                    - {{.ImportedLen}}+{{.TestImportedLen}} refs
-                    - {{.StarCount}} stars
-                </div>
-                <div class="summary">{{.Summary}}</div>
-                {{if .Subs }}
-                <div>sub:
-                    {{range .Subs}}
-                    <span>
-                        <a target="_blank" title="{{.Info}}" href="view?id={{.Package}}">{{.MarkedName}}({{.SubPath}})</a>
-                    </span>
-                    {{end}}
-                </div>
-                {{end}}
-                <div class="info">
-                    <a target="_blank" href="{{.ProjectURL}}">{{.MarkedPackage}}</a>
-                    - <a target="_blank" href="http://godoc.org/{{.Package}}">GoDoc</a>
-                    - {{printf "%.2f" .Score}} ({{printf "M: %.2f" .MatchScore}}, {{printf "S: %.2f" .StaticScore}})
-                </div>
-            </li>
-        {{end}}
+        {{ range .Results.Docs }}
+        <li>
+            <div class="title">
+                <div class="num">{{ .Index }}.</div><a target="_blank" href="/view?id={{ .Package }}">{{ if .MarkedName }}{{ .MarkedName }}{{ else }}({{ .MarkedPackage }}){{ end }}</a>
+                - {{ .ImportedLen }}+{{ .TestImportedLen }} refs
+                - {{ .StarCount }} stars
+            </div>
+            <div class="summary">{{ .Summary }}</div>
+            {{ if .Subs }}
+            <div>sub:
+                {{ range .Subs }}
+                <span>
+                    <a target="_blank" title="{{ .Info }}" href="view?id={{ .Package }}">{{ .MarkedName }}({{ .SubPath }})</a>
+                </span>
+                {{ end }}
+            </div>
+            {{ end }}
+            <div class="info">
+                <a target="_blank" href="{{ .ProjectURL }}">{{ .MarkedPackage }}</a>
+                - <a target="_blank" href="http://godoc.org/{{ .Package }}">GoDoc</a>
+                - {{ printf "%.2f" .Score }} ({{ printf "M: %.2f" .MatchScore }}, {{ printf "S: %.2f" .StaticScore }})
+            </div>
+        </li>
+        {{ end }}
     </ol>
 </div>
-{{if .TotalPages}}
-<ul class="pagination">{{$q := .Q}}
-    <li>{{with .PrevPage}}<a href="?q={{$q}}&p={{.}}"> &laquo; </a>{{end}}</li>
-    {{range .BeforePages}}
-    <li><a href="?q={{$q}}&p={{.}}">{{.}}</a></li>
-    {{end}}
-	<li class="active"><a href="#">{{.CurrentPage}} <span class="sr-only">(current)</span></a></li>
-    {{range .AfterPages}}
-    <li><a class="page" href="?q={{$q}}&p={{.}}">{{.}}</a></li>
-    {{end}}
-    <li>{{with .NextPage}}<a href="?q={{$q}}&p={{.}}"> &raquo; </a>{{end}}</li>
+{{ if .TotalPages }}
+<ul class="pagination">{{ $q := .Q }}
+    <li>{{ with .PrevPage }}<a href="?q={{ $q }}&p={{ . }}"> &laquo; </a>{{ end }}</li>
+    {{ range .BeforePages }}
+    <li><a href="?q={{ $q }}&p={{ . }}">{{ . }}</a></li>
+    {{ end }}
+    <li class="active"><a href="#">{{ .CurrentPage }} <span class="sr-only">(current)</span></a></li>
+    {{ range .AfterPages }}
+    <li><a class="page" href="?q={{ $q }}&p={{ . }}">{{ . }}</a></li>
+    {{ end }}
+    <li>{{ with .NextPage }}<a href="?q={{ $q }}&p={{ . }}"> &raquo; </a>{{ end }}</li>
 </ul>
-{{end}}
-{{if .BottomQ}}
-{{template "searchbox.html" .UIUtils.Slice .Q false}}
-{{end}}
-<script>
-window.onload = function() {
-    var q = '{{.Q}}';
-    q = q.toLowerCase().trim();
-    ga('send', 'event', 'search', 'query', q);
-};
-</script>
-{{template "footer.html"}}
+{{ end }}
+
+{{ if .BottomQ }}
+{{ template "searchbox.html" .UIUtils.Slice .Q false }}
+{{ end }}
+
+{{ template "footer.html" }}

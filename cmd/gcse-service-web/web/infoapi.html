@@ -1,5 +1,5 @@
-{{template "header.html" .UIUtils.Slice "Go Search API" "api"}}
-{{define "apibody"}}
+{{ template "header.html" .UIUtils.Slice "Go Search API" "api" }}
+{{ define "apibody" }}
 ### Introduction
 
 Go Search API, or GSAPI, returns structured data with json or jsonp format.
@@ -121,8 +121,8 @@ Returns the search result. [example](/api?action=search&q=gcse)
     `hits`  | `[]`       | Hit entries. For each item:<br> `name` is the name of the project,<br> `package` is the package import path,<br> `projecturl` is the URL if the item is not a package,<br> `author` is the author name of the project, <br> `synopsis` is the brief introduction of the project, <br> `description` is the detailed introduction of the project.
 
 
-{{end}}
+{{ end }}
 <div class="markdown">
-{{markdown "apibody"}}
+{{ markdown "apibody" }}
 </div>
-{{template "footer.html"}}
+{{ template "footer.html" }}

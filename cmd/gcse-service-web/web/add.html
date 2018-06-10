@@ -1,25 +1,20 @@
-{{template "header.html" .UIUtils.Slice "Add Packages" "add"}}
-{{if .Message }}
+{{ template "header.html" .UIUtils.Slice "Add Packages" "add" }}
+{{ if .Message  }}
 <div class="panel-body">
-	<div class="alert alert-{{.MsgCls}} alert-dismissible" role="alert">
-		<button type="button" class="close" data-dismiss="alert"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
-		{{.Message}}
-	</div>
+    <div class="alert alert-{{ .MsgCls }} alert-dismissible" role="alert">
+        <button type="button" class="close" data-dismiss="alert"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+        {{ .Message }}
+    </div>
 </div>
-{{end}}
+{{ end }}
 <div>
     <form method="post" action="add" role="form">
-		<div class="form-group">
-			<label for="pkg">Packages</label>
-            <textarea id="pkg" class="form-control" rows="3" name="pkg" value="" placeholder="Import path to the packages to add..." autofocus>{{.TAValue}}</textarea>
-			<p class="help-block">One package a line. No quotes.</p>
-		</div>
+        <div class="form-group">
+            <label for="pkg">Packages</label>
+            <textarea id="pkg" class="form-control" rows="3" name="pkg" value="" placeholder="Import path to the packages to add..." autofocus>{{ .TAValue }}</textarea>
+            <p class="help-block">One package a line. No quotes.</p>
+        </div>
         <button class="btn btn-default"> <span class="glyphicon glyphicon-plus"></span> add</button>
     </form>
 </div>
-<script>
-window.onload = function() {
-    ga('send', 'event', 'add', 'add', 'add');
-};
-</script>
-{{template "footer.html"}}
+{{ template "footer.html" }}

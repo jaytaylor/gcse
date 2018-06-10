@@ -1,26 +1,27 @@
-{{template "header.html" .UIUtils.Slice "Top" "top"}}
+{{ template "header.html" .UIUtils.Slice "Top" "top" }}
 
 <div>
-{{range .Lists}}
-<div class="toplist panel panel-default">
-  <div class="panel-heading">
-    <div class="tableinfo">{{.Info}}</div>
-    <div class="pkg">{{.Name}}</div>
-  </div>
-	<ul class="list-group">
-	{{range .Items}}
-	    <li class="list-group-item">
-			<div class="topnum">{{.Index}}.</div>
-	        <div class="tableinfo">{{.Info}}</div>
-	        <div class="pkg"><span>{{if .Package}}<a target="_blank" href="/view?id={{.Package}}">{{.Name}}</a>{{else}}<a target="_blank" href="{{.Link}}">{{.Name}}</a>{{end}}<span></div>
-	    </li>
-	{{end}}
-	</ul>
+    {{ range .Lists }}
+    <div class="toplist panel panel-default">
+        <div class="panel-heading">
+            <div class="tableinfo">{{ .Info }}</div>
+            <div class="pkg">{{ .Name }}</div>
+        </div>
+        <ul class="list-group">
+            {{ range .Items }}
+            <li class="list-group-item">
+                <div class="topnum">{{ .Index }}.</div>
+                <div class="tableinfo">{{ .Info }}</div>
+                <div class="pkg"><span>{{ if .Package }}<a target="_blank" href="/view?id={{ .Package }}">{{ .Name }}</a>{{ else }}<a target="_blank" href="{{ .Link }}">{{ .Name }}</a>{{ end }}<span></div>
+            </li>
+            {{ end }}
+        </ul>
+    </div>
+    {{ end }}
 </div>
-{{end}}
 <div class="clearboth rightalign">
     <a href="/tops?len=100">show more</a>
     | <a href="/api?action=tops">JSON</a>
 </div>
 <div class="clearboth"></div>
-{{template "footer.html"}}
+{{ template "footer.html" }}

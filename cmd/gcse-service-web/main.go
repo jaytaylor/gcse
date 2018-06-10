@@ -59,6 +59,7 @@ func init() {
 	http.Handle("/js/", http.StripPrefix("/js/", http.FileServer(http.Dir(configs.ServerRoot.Join("js").S()))))
 	http.Handle("/images/", http.StripPrefix("/images/", http.FileServer(http.Dir(configs.ServerRoot.Join("images").S()))))
 	http.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir(configs.ServerRoot.Join("images").S()))))
+	http.Handle("/fonts/", http.StripPrefix("/fonts/", http.FileServer(http.Dir(configs.ServerRoot.Join("fonts").S()))))
 	http.Handle("/robots.txt", http.FileServer(http.Dir(configs.ServerRoot.Join("static").S())))
 
 	http.HandleFunc("/add", pageAdd)

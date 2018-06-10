@@ -1,23 +1,9 @@
-{{template "header.html" .UIUtils.Slice (printf "%s - Package" .Name) "view"}}
-<div id="fb-root"></div>
-<script>(function(d, s, id) {
-  var js, fjs = d.getElementsByTagName(s)[0];
-  if (d.getElementById(id)) return;
-  js = d.createElement(s); js.id = id;
-  js.src = "//connect.facebook.net/en_US/all.js#xfbml=1";
-  fjs.parentNode.insertBefore(js, fjs);
-}(document, 'script', 'facebook-jssdk'));
-
-window.fbAsyncInit = function() {
-	FB.Event.subscribe('edge.create', like_callback);
-	FB.Event.subscribe('edge.remove', unlike_callback);
-}
-</script>
+{{ template "header.html" .UIUtils.Slice (printf "%s - Package" .Name) "view" }}
 <div itemscope itemtype="http://schema.org/Code">
 <div class="page-header">
-	<h1>
-		Package <span itemprop="name">{{.Name}}</span> - {{.StarCount}} stars
-	</h1>
+  <h1>
+    Package <span itemprop="name">{{ .Name }}</span> - {{ .StarCount }} stars
+  </h1>
 </div>
 
 <nav class="navbar navbar-default" role="navigation">
@@ -25,18 +11,18 @@ window.fbAsyncInit = function() {
     <!-- Collect the nav links, forms, and other content for toggling -->
     <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
       <ul class="nav navbar-nav">
-	    <li><a href="{{.ProjectURL}}" itemprop="url">Project</a></li>
-	    <li><a href="http://godoc.org/{{.Package}}">GoDoc</a></li>
-	    <li><a href="http://gowalker.org/{{.Package}}">GoWalker</a></li>
-	    <li><a href="/badgepage?id={{.Package}}">Badge</a></li>
-	    <li><a href="/api?action=package&id={{.Package}}">JSON</a></li>
-		<li><a href="#"><div style="vertical-align: middle" class="fb-like" data-href="{{.ProjectURL}}" data-send="false" data-layout="button_count" data-width="450" data-show-faces="true"></div></a></li>
-		<li><a href="#"><div class="g-plusone" data-size="small" data-href="{{.ProjectURL}}" data-callback="plusone_callback"></div></a></li>
+      <li><a href="{{ .ProjectURL }}" itemprop="url">Project</a></li>
+      <li><a href="http://godoc.org/{{ .Package }}">GoDoc</a></li>
+      <li><a href="http://gowalker.org/{{ .Package }}">GoWalker</a></li>
+      <li><a href="/badgepage?id={{ .Package }}">Badge</a></li>
+      <li><a href="/api?action=package&id={{ .Package }}">JSON</a></li>
+    <li><a href="#"><div style="vertical-align: middle" class="fb-like" data-href="{{ .ProjectURL }}" data-send="false" data-layout="button_count" data-width="450" data-show-faces="true"></div></a></li>
+    <li><a href="#"><div class="g-plusone" data-size="small" data-href="{{ .ProjectURL }}" data-callback="plusone_callback"></div></a></li>
       </ul>
      <p class="navbar-text navbar-right">
-        Last crawled: {{.LastUpdated.UTC.Format "2006-01-02 15:04:05 (MST)"}},
-        {{printf "%.2f" .StaticScore}},
-        {{.StaticRank}}/{{.TotalDocCount}}
+        Last crawled: {{ .LastUpdated.UTC.Format "2006-01-02 15:04:05 (MST)" }},
+        {{ printf "%.2f" .StaticScore }},
+        {{ .StaticRank }}/{{ .TotalDocCount }}
       </p>
     </div><!-- /.navbar-collapse -->
   </div><!-- /.container-fluid -->
@@ -48,106 +34,62 @@ window.fbAsyncInit = function() {
       <span class="glyphicon glyphicon-copy"></span>
     </button>
   </span>
-  <input id="import" type="text" class="form-control" value="import &quot;{{.Package}}&quot;" disabled="disabled">
+  <input id="import" type="text" class="form-control" value="import &quot;{{ .Package }}&quot;" disabled="disabled">
 </div>
 
-{{if .Description}}
+{{ if .Description }}
 <div class="panel panel-default">
   <div class="panel-body">
-    {{.DescHTML}}
+    {{ .DescHTML }}
   </div>
 </div>
-{{end}}{{if .ShowReadme}}<pre class="readme" itemprop="description">({{.ReadmeFn}})
-{{.ReadmeData}}
-</pre>{{end}}
+{{ end }}{{ if .ShowReadme }}<pre class="readme" itemprop="description">({{ .ReadmeFn }})
+{{ .ReadmeData }}
+</pre>{{ end }}
 
-{{if len .Imported}}
-<h3>Imported by {{len .Imported}} package(s) <a href="#imported" id="imported" class="anchor">¶</a></h3>
+{{ if len .Imported }}
+<h3>Imported by {{ len .Imported }} package(s) <a href="#imported" id="imported" class="anchor">¶</a></h3>
 <ol>
-    {{range .Imported}}
-        <li><a target="_blank" href="view?id={{.}}">{{.}}</a></li>
-    {{end}}
+{{ range .Imported }}
+    <li><a target="_blank" href="view?id={{ . }}">{{ . }}</a></li>
+{{ end }}
 </ol>
-{{end}}
-{{if len .TestImported}}
-<h3>Imported only in test by {{len .TestImported}} package(s) <a href="#testimported" id="testimported" class="anchor">¶</a></h3>
+{{ end }}
+{{ if len .TestImported }}
+<h3>Imported only in test by {{ len .TestImported }} package(s) <a href="#testimported" id="testimported" class="anchor">¶</a></h3>
 <ol>
-    {{range .TestImported}}
-        <li><a target="_blank" href="view?id={{.}}">{{.}}</a></li>
-    {{end}}
+{{ range .TestImported }}
+    <li><a target="_blank" href="view?id={{ . }}">{{ . }}</a></li>
+{{ end }}
 </ol>
-{{end}}
-{{if len .Imports}}
-<h3>Imports {{len .Imports}} package(s) <a href="#imports" id="imports" class="anchor">¶</a></h3>
+{{ end }}
+{{ if len .Imports }}
+<h3>Imports {{ len .Imports }} package(s) <a href="#imports" id="imports" class="anchor">¶</a></h3>
     <ol>
-        {{range .Imports}}
-            <li><a href="view?id={{.}}">{{.}}</a></li>
-        {{end}}
+    {{ range .Imports }}
+        <li><a href="view?id={{ . }}">{{ . }}</a></li>
+    {{ end }}
     </ol>
-{{end}}
-{{if len .TestImports}}
-<h3>Test imports {{len .TestImports}} package(s) <a href="#testimports" id="testimports" class="anchor">¶</a></h3>
+{{ end }}
+{{ if len .TestImports }}
+<h3>Test imports {{ len .TestImports }} package(s) <a href="#testimports" id="testimports" class="anchor">¶</a></h3>
     <ol>
-        {{range .TestImports}}
-            <li><a href="view?id={{.}}">{{.}}</a></li>
-        {{end}}
+    {{ range .TestImports }}
+        <li><a href="view?id={{ . }}">{{ . }}</a></li>
+    {{ end }}
     </ol>
-{{end}}
+{{ end }}
 <div>
 
-<div id="disqus_thread"></div>
-    <script type="text/javascript">
-        /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
-        var disqus_shortname = 'go-search'; // required: replace example with your forum shortname
-        var disqus_identifier = '{{.Package}}';
-
-        function disqus_config() {
-            console.log('disqus_config');
-            this.callbacks.onNewComment = [function(comment) {
-            	console.log('comment_create_callback');
-                ga('send', 'event', 'comment', '{{.Package}}', 'create');
-            }];
-        }
-        /* * * DON'T EDIT BELOW THIS LINE * * */
-        (function() {
-            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
-            dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
-            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
-        })();
-    </script>
-    <noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
-</div>
 <div itemprop="programmingLanguage" itemscope itemtype="http://schema.org/Thing">
     <meta itemprop="name" content="Go"></meta>
 </div>
-{{template "searchbox.html" .UIUtils.Slice "" false}}
+
+{{ template "searchbox.html" .UIUtils.Slice "" false }}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/1.5.12/clipboard.min.js"></script>
 <script>
   new Clipboard(document.getElementById('import-btn'))
 </script>
 
-<script type="text/javascript">
-  (function() {
-    var po = document.createElement('script'); po.type = 'text/javascript'; po.async = true;
-    po.src = 'https://apis.google.com/js/plusone.js';
-    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(po, s);
-  })();
-</script>
-
-<script>
-function plusone_callback(e) {
-	console.log('plusone_callback');
-    ga('send', 'event', 'plusone', '{{.Package}}', e.state);
-}
-
-function like_callback(url, html_element) {
-	console.log('like_callback');
-    ga('send', 'event', 'like', '{{.Package}}', 'like');
-}
-function unlike_callback(url, html_element) {
-	console.log('unlike_callback');
-    ga('send', 'event', 'like', '{{.Package}}', 'unlike');
-}
-</script>
-{{template "footer.html"}}
+{{ template "footer.html" }}

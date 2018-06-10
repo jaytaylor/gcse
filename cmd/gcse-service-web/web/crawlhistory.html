@@ -1,20 +1,27 @@
-{{template "header.html" .UIUtils.Slice "Crawl Histotry" "crawlhistory"}}
-{{if .FoundTime}}
+{{ template "header.html" .UIUtils.Slice "Crawl Histotry" "crawlhistory" }}
+{{ if .FoundTime }}
 <div class="jumbotron">
-	Found at <b>{{.FoundTime}}</b> by <b>{{.FoundWay}}</b><br/>
-	{{if .LatestSuccess}}<br>Latest success at <b>{{.LatestSuccess}}</b>{{end}}
-	{{if .LatestFailed}}<br>Latest failed at <b>{{.LatestFailed}}</b>{{end}}
+    Found at <b>{{ .FoundTime }}</b> by <b>{{ .FoundWay }}</b><br/>
+    {{ if .LatestSuccess }}<br>Latest success at <b>{{ .LatestSuccess }}</b>{{ end }}
+    {{ if .LatestFailed }}<br>Latest failed at <b>{{ .LatestFailed }}</b>{{ end }}
 </div>
 <div>
-</div>{{end}}
+</div>
+{{ end }}
 <table class="table">
-<thead>
-<tr><th>Time</th><th>Action</th></tr>
-</thead>
-<tbody>
-{{range .Events}}
-<tr><td>{{.Time}}</td><td>{{.Action}}</td></tr>
-{{end}}
-</tbody>
+    <thead>
+        <tr>
+            <th>Time</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+{{ range .Events }}
+        <tr>
+            <td>{{ .Time }}</td>
+            <td>{{ .Action }}</td>
+        </tr>
+{{ end }}
+    </tbody>
 </table>
-{{template "footer.html"}}
+{{ template "footer.html" }}
