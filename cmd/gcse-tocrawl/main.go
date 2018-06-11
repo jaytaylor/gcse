@@ -64,13 +64,19 @@ func loadPackageUpdateTimes(fpDocs sophie.FsPath) (map[string]time.Time, error) 
 }
 
 func generateCrawlEntries(db *gcse.MemDB, hostFromID func(id string) string, out kv.DirOutput, pkgUTs map[string]time.Time) error {
-	now := time.Now()
+	var (
+		now            = time.Now()
+		groups         = make(map[string][]idAndCrawlingEntry)
+		count          = 0
+		skippedVendors = 0
+		ages           = map[string]nameAndAges{}
+	)
+
 	type idAndCrawlingEntry struct {
 		id  string
 		ent *gcse.CrawlingEntry
 	}
-	groups := make(map[string][]idAndCrawlingEntry)
-	count := 0
+
 	type nameAndAges struct {
 		maxName string
 		maxAge  time.Duration
@@ -81,9 +87,8 @@ func generateCrawlEntries(db *gcse.MemDB, hostFromID func(id string) string, out
 		// The number of packages not in pkgUTs
 		newCnt int
 	}
-	skippedVendors := 0
-	ages := make(map[string]nameAndAges)
-	if err := db.Iterate(func(id string, val interface{}) error {
+
+	dbIterFn := func(id string, val interface{}) error {
 		ent, ok := val.(gcse.CrawlingEntry)
 		if !ok {
 			log.Printf("Wrong entry: %+v", ent)
@@ -97,20 +102,25 @@ func generateCrawlEntries(db *gcse.MemDB, hostFromID func(id string) string, out
 			skippedVendors++
 			return nil
 		}
+
 		host := hostFromID(id)
 
+		// TODO Marked spot for review in implementing handlers for more than just
+		//      github.com
 		if host != "github.com" {
 			return nil
 		}
 
-		// check host black list
+		// Check host blacklist.
 		if configs.NonCrawlHosts.Contain(host) {
 			return nil
 		}
+
 		if rand.Intn(10) == 0 {
-			// randomly set Etag to empty to fetch stars
+			// Randomly set Etag to empty to fetch stars.
 			ent.Etag = ""
 		}
+
 		groups[host] = append(groups[host], idAndCrawlingEntry{
 			id:  id,
 			ent: &ent,
@@ -129,14 +139,18 @@ func generateCrawlEntries(db *gcse.MemDB, hostFromID func(id string) string, out
 		ages[host] = na
 
 		count++
+
 		return nil
-	}); err != nil {
+	}
+
+	if err := db.Iterate(dbIterFn); err != nil {
 		return errorsp.WithStacks(err)
 	}
 	if skippedVendors > 0 {
 		log.Printf("skippedVendors: %d", skippedVendors)
 	}
 	gcse.AddBiValueAndProcess(bi.Average, "crawler.skipped_vendor_packages", skippedVendors)
+
 	index := 0
 	for _, g := range groups {
 		sortp.SortF(len(g), func(i, j int) bool {
@@ -265,15 +279,13 @@ func main() {
 
 	pathToCrawl := villa.Path(configs.ToCrawlPath())
 
-	kvPackage := kv.DirOutput(sophie.LocalFsPath(
-		pathToCrawl.Join(configs.FnPackage).S()))
+	kvPackage := kv.DirOutput(sophie.LocalFsPath(pathToCrawl.Join(configs.FnPackage).S()))
 	kvPackage.Clean()
 	if err := generateCrawlEntries(cDB.PackageDB, gcse.HostOfPackage, kvPackage, pkgUTs); err != nil {
 		log.Fatalf("generateCrawlEntries %v failed: %v", kvPackage.Path, err)
 	}
 
-	kvPerson := kv.DirOutput(sophie.LocalFsPath(
-		pathToCrawl.Join(configs.FnPerson).S()))
+	kvPerson := kv.DirOutput(sophie.LocalFsPath(pathToCrawl.Join(configs.FnPerson).S()))
 
 	kvPerson.Clean()
 	if err := generateCrawlEntries(cDB.PersonDB, func(id string) string {

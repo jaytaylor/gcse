@@ -199,7 +199,7 @@ func main() {
 	bi.Process()
 	syncDatabases()
 	if errPkg != nil || errPsn != nil {
-		log.Fatalf("Some job may have failed, package: %v, person: %v", errPkg, errPsn)
+		log.Fatalf("One or more of the jobs failed; packages: %v, persons: %v", errPkg, errPsn)
 	}
 
 	log.Println("Crawler finished OK")
