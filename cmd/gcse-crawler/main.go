@@ -8,6 +8,7 @@ import (
 	"flag"
 	"io"
 	"log"
+	"os"
 	"runtime"
 	"time"
 
@@ -39,6 +40,7 @@ func init() {
 		doc.SetGithubCredentials(configs.CrawlerGithubClientID, configs.CrawlerGithubClientSecret)
 	}
 	doc.SetUserAgent("Go-Search(http://go-search.org/)")
+	// doc.SetUserAgent("Go-Search(http://go.gigawatt.io/)")
 }
 
 func syncDatabases() {
@@ -97,17 +99,19 @@ func (crawlerMapper) MapEnd(c []sophie.Collector) error {
 }
 
 func cleanTempDir() {
-	tmpFn := villa.Path("/tmp/gddo")
-	if err := tmpFn.RemoveAll(); err != nil {
-		log.Printf("Delete %v failed: %v", tmpFn, err)
+	tmpPath := villa.Path(os.TempDir()).Join("gddo")
+	if err := tmpPath.RemoveAll(); err != nil {
+		log.Printf("Cleaning up temporary directory %q failed: %v", tmpPath, err)
 	}
 }
 
 func main() {
 	ctx := context.Background()
 
+	httpClient := gcse.NewHTTPClient("")
+
 	log.Printf("Using personal github token: %v", configs.CrawlerGithubPersonal)
-	gcse.GithubSpider = github.NewSpiderWithToken(configs.CrawlerGithubPersonal)
+	gcse.GithubSpider = github.NewSpiderWithToken(configs.CrawlerGithubPersonal, httpClient)
 
 	fileCachePath := configs.FileCacheBoltPath()
 	if db, err := bh.Open(fileCachePath, 0644, nil); err == nil {
@@ -123,13 +127,13 @@ func main() {
 	cleanTempDir()
 	defer cleanTempDir()
 
-	singlePackage := flag.String("pkg", "", "Crawling a single package")
-	singleETag := flag.String("etag", "", "ETag for the single package crawling")
-	singlePerson := flag.String("person", "", "Crawling a single person")
+	var (
+		singlePackage = flag.String("pkg", "", "Crawling a single package")
+		singleETag    = flag.String("etag", "", "ETag for the single package crawling")
+		singlePerson  = flag.String("person", "", "Crawling a single person")
+	)
 
 	flag.Parse()
-
-	httpClient := gcse.GenHttpClient("")
 
 	if *singlePerson != "" {
 		log.Printf("Crawling single person %q ...", *singlePerson)

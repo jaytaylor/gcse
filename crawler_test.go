@@ -52,15 +52,16 @@ func TestLikeButton(t *testing.T) {
 func TestCrawlPackage(t *testing.T) {
 	ctx := context.Background()
 
+	httpClient := NewHTTPClient("")
+
 	if configs.CrawlerGithubClientID != "" {
 		t.Logf("Github clientid: %s", configs.CrawlerGithubClientID)
 		t.Logf("Github clientsecret: %s", configs.CrawlerGithubClientSecret)
 		doc.SetGithubCredentials(configs.CrawlerGithubClientID, configs.CrawlerGithubClientSecret)
 	}
-	GithubSpider = github.NewSpiderWithToken(configs.CrawlerGithubPersonal)
+	GithubSpider = github.NewSpiderWithToken(configs.CrawlerGithubPersonal, httpClient)
 
 	pkg := "github.com/daviddengcn/gcse"
-	httpClient := GenHttpClient("")
 	p, _, err := CrawlPackage(ctx, httpClient, pkg, "")
 	if err != nil {
 		if strings.Index(err.Error(), "403") == -1 {

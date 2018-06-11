@@ -2,29 +2,25 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"math/rand"
 	"strings"
 	"time"
 
-	"github.com/golangplus/time"
-
-	"github.com/daviddengcn/gcse"
-	"github.com/daviddengcn/gcse/configs"
 	"github.com/daviddengcn/gddo/doc"
 	"github.com/daviddengcn/go-easybi"
 	"github.com/daviddengcn/sophie"
 	"github.com/daviddengcn/sophie/kv"
 	"github.com/daviddengcn/sophie/mr"
+	"github.com/golangplus/errors"
+	"github.com/golangplus/time"
+
+	"github.com/daviddengcn/gcse"
+	"github.com/daviddengcn/gcse/configs"
 )
 
 const (
 	DefaultPersonAge = 100 * timep.Day
-)
-
-var (
-	crawlPersonsOverdueLimit = time.Minute * 10
 )
 
 type PersonCrawler struct {
@@ -64,6 +60,8 @@ func (pc *PersonCrawler) Map(key, val sophie.SophieWriter, c []sophie.Collector)
 		cDB.SchedulePerson(id, time.Now().Add(12*time.Hour))
 
 		if pc.failCount >= 10 || strings.Contains(err.Error(), "403") {
+			log.Printf("WARNING: \"403\" found in error message \"%s\"", err)
+
 			durToSleep := 10 * time.Minute
 			if time.Now().Add(durToSleep).After(AppStopTime) {
 				log.Printf("[Part %d] Timeout(key = %v), PersonCrawler returns EOM", pc.part, key)
@@ -92,21 +90,25 @@ type PeresonCrawlerFactory struct {
 }
 
 func (pcf PeresonCrawlerFactory) NewMapper(part int) mr.OnlyMapper {
-	return &PersonCrawler{part: part, httpClient: pcf.httpClient}
+	pc := &PersonCrawler{
+		part:       part,
+		httpClient: pcf.httpClient,
+	}
+	return pc
 }
 
 // crawl packages, send error back to end
-func crawlPersons(httpClient doc.HttpClient, fpToCrawlPsn sophie.FsPath, end chan error) {
-	timeout := configs.CrawlerDuePerRun + crawlPersonsOverdueLimit
+func crawlPersons(httpClient doc.HttpClient, fpToCrawlPerson sophie.FsPath, end chan error) {
+	timeout := configs.CrawlerDuePerRun + crawlOverdueLimit
 
 	time.AfterFunc(timeout, func() {
-		end <- fmt.Errorf("Crawling persons timed out after %s", timeout)
+		end <- errorsp.NewWithStacks("Crawling persons timed out after %s", timeout)
 	})
 
 	end <- func() error {
 		job := mr.MapOnlyJob{
 			Source: []mr.Input{
-				kv.DirInput(fpToCrawlPsn),
+				kv.DirInput(fpToCrawlPerson),
 			},
 			NewMapperF: func(src, part int) mr.OnlyMapper {
 				return &PersonCrawler{

@@ -208,13 +208,15 @@ func main() {
 
 	ctx := context.Background()
 
+	httpClient := gcse.NewHTTPClient("")
+
 	log.Println("Running tocrawl tool, to generate crawling list")
 	log.Println("NonCrawlHosts: ", configs.NonCrawlHosts)
 	log.Println("CrawlGithubUpdate: ", configs.CrawlGithubUpdate)
 	log.Println("CrawlByGodocApi: ", configs.CrawlByGodocApi)
 
 	log.Printf("Using personal: %v", configs.CrawlerGithubPersonal)
-	gcse.GithubSpider = github.NewSpiderWithToken(configs.CrawlerGithubPersonal)
+	gcse.GithubSpider = github.NewSpiderWithToken(configs.CrawlerGithubPersonal, httpClient)
 
 	if err := configs.Mkdirs(); err != nil {
 		log.Fatalf("main: %s", err)
@@ -234,7 +236,6 @@ func main() {
 		}
 
 		if configs.CrawlByGodocApi {
-			httpClient := gcse.GenHttpClient("")
 			pkgs, err := godocorg.FetchAllPackagesInGodoc(httpClient)
 			if err != nil {
 				log.Fatalf("FetchAllPackagesInGodoc failed: %v", err)

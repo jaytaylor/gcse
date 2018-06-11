@@ -3,6 +3,7 @@ package github
 import (
 	"context"
 	"errors"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -13,41 +14,51 @@ import (
 	"strings"
 	"time"
 
+	gpb "github.com/daviddengcn/gcse/shared/proto"
 	"github.com/daviddengcn/gcse/spider"
+	"github.com/daviddengcn/gddo/doc"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golangplus/bytes"
 	"github.com/golangplus/errors"
 	"github.com/golangplus/strings"
 	"github.com/google/go-github/github"
 	"golang.org/x/oauth2"
-
-	gpb "github.com/daviddengcn/gcse/shared/proto"
 )
 
 var (
 	ErrInvalidPackage    = errors.New("the package is not a Go package")
 	ErrInvalidRepository = errors.New("the repository is not found")
 	ErrRateLimited       = errors.New("Github rate limited")
+
+	MinAllowedRateQuota       = 0.1
+	RateLimitQuotaCheckPeriod = 30 * time.Second // 1 * time.Minute
 )
 
 type Spider struct {
 	client *github.Client
 
-	FileCache spider.FileCache
+	FileCache     spider.FileCache
+	accessToken   string
+	httpClient    doc.HttpClient
+	lastRateCheck time.Time
+	remaining     int
 }
 
-func NewSpiderWithToken(token string) *Spider {
+func NewSpiderWithToken(token string, httpClient doc.HttpClient) *Spider {
 	hc := http.DefaultClient
 	if token != "" {
 		hc = oauth2.NewClient(oauth2.NoContext, oauth2.StaticTokenSource(
 			&oauth2.Token{AccessToken: token},
 		))
 	}
-	c := github.NewClient(hc)
-	return &Spider{
-		client:    c,
-		FileCache: spider.NullFileCache{},
+	client := github.NewClient(hc)
+	s := &Spider{
+		client:      client,
+		FileCache:   spider.NullFileCache{},
+		accessToken: token,
+		httpClient:  httpClient,
 	}
+	return s
 }
 
 type roundTripper map[string]string
@@ -86,8 +97,47 @@ type User struct {
 
 func (s *Spider) waitForRate() error {
 	// TODO: Implement proper GH API check for remaining calls.
+	if s.accessToken == "" {
+		time.Sleep(time.Second)
+		return nil
+	}
 
-	time.Sleep(time.Second)
+	if time.Now().Sub(s.lastRateCheck) < RateLimitQuotaCheckPeriod {
+		return nil
+	}
+
+	rem, limit, err := s.checkRateQuota()
+	if err != nil {
+		return err
+	}
+
+	pct := float64(rem) / float64(limit)
+
+	log.Printf("Github API quota rem/limit: %v/%v (%v%% available)", rem, limit, pct)
+
+	if pct < MinAllowedRateQuota {
+		log.Printf("Less than %v% github API quota is remaining, waiting to recover 2x this amount", MinAllowedRateQuota*100)
+
+		for {
+			time.Sleep(30 * time.Second)
+
+			rem, limit, err := s.checkRateQuota()
+			if err != nil {
+				log.Printf("Error checking github rate-limit quota: %s", err)
+				continue
+			}
+
+			newPct := float64(rem) / float64(limit)
+
+			if newPct/2 > pct {
+				log.Printf("Recovered 2x github rate-limit quota, resuming operation")
+				break
+			}
+		}
+	}
+
+	s.lastRateCheck = time.Now()
+
 	return nil
 	//	r := s.client.Rate()
 	//	if r.Limit == 0 {
@@ -104,6 +154,40 @@ func (s *Spider) waitForRate() error {
 	//	log.Printf("Quota used up (limit = %d), sleep until %v", r.Limit, r.Reset.Time)
 	//	timep.SleepUntil(r.Reset.Time)
 	//	return nil
+}
+
+func (s *Spider) checkRateQuota() (rem int, limit int, err error) {
+	var (
+		checkURL = fmt.Sprintf("https://api.github.com/rate_limit?access_token=%v", s.accessToken)
+		req      *http.Request
+		resp     *http.Response
+	)
+
+	if req, err = http.NewRequest("", checkURL, nil); err != nil {
+		err = errorsp.WithStacksAndMessage(err, "creating http request to check github rate-limit quota")
+		return
+	}
+
+	if resp, err = s.httpClient.Do(req); err != nil {
+		err = errorsp.WithStacksAndMessage(err, "checking remaining github rate-limit quota")
+		return
+	}
+
+	var (
+		remStr   = resp.Header.Get("X-RateLimit-Remaining")
+		limitStr = resp.Header.Get("X-RateLimit-Limit")
+	)
+
+	if rem, err = strconv.Atoi(remStr); err != nil {
+		err = errorsp.WithStacksAndMessage(err, fmt.Sprintf("failed to convert github remaining header string %q into an int", limitStr))
+		return
+	}
+	if limit, err = strconv.Atoi(limitStr); err != nil {
+		err = errorsp.WithStacksAndMessage(err, fmt.Sprintf("failed to convert github limit header string %q into an int", limitStr))
+		return
+	}
+
+	return
 }
 
 func repoInfoFromGithub(repo *github.Repository) *gpb.RepoInfo {
@@ -159,7 +243,7 @@ func (s *Spider) getFile(ctx context.Context, user string, repo, path string) (s
 		return "", errorsp.WithStacks(err)
 	}
 	if c.GetType() != "file" {
-		return "", errorsp.NewWithStacks("Contents of %s/%s/%s is not a file: %v", user, repo, path, stringsp.Get(c.Type))
+		return "", errorsp.NewWithStacks("Contents of %v/%v/%v is not a file: %v", user, repo, path, stringsp.Get(c.Type))
 	}
 	body, err := c.GetContent()
 	return body, errorsp.WithStacks(err)

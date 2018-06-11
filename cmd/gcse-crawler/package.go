@@ -7,22 +7,21 @@ import (
 	"strings"
 	"time"
 
+	"github.com/daviddengcn/gddo/doc"
+	"github.com/daviddengcn/go-easybi"
+	"github.com/daviddengcn/sophie"
+	"github.com/daviddengcn/sophie/kv"
+	"github.com/daviddengcn/sophie/mr"
 	"github.com/golangplus/errors"
 	"github.com/golangplus/strings"
 	"github.com/golangplus/time"
 
 	"github.com/daviddengcn/gcse"
 	"github.com/daviddengcn/gcse/configs"
+	gpb "github.com/daviddengcn/gcse/shared/proto"
 	"github.com/daviddengcn/gcse/spider"
 	"github.com/daviddengcn/gcse/store"
 	"github.com/daviddengcn/gcse/utils"
-	"github.com/daviddengcn/gddo/doc"
-	"github.com/daviddengcn/go-easybi"
-	"github.com/daviddengcn/sophie"
-	"github.com/daviddengcn/sophie/kv"
-	"github.com/daviddengcn/sophie/mr"
-
-	gpb "github.com/daviddengcn/gcse/shared/proto"
 )
 
 const (
@@ -31,15 +30,16 @@ const (
 )
 
 var (
+	crawlOverdueLimit = time.Minute * 10
+
 	allDocsPkgs stringsp.Set
 )
 
-// Schedule a package for next crawling cycle, commonly after a successful
-// update.
+// schedulePackageNextCrawl scheduled a package for next crawling cycle,
+// commonly after a successful update.
 func schedulePackageNextCrawl(pkg string, etag string) {
-	cDB.SchedulePackage(pkg, time.Now().Add(time.Duration(
-		float64(DefaultPackageAge)*(1+(rand.Float64()-0.5)*0.2))), etag)
-
+	d := time.Duration(float64(DefaultPackageAge) * (1 + (rand.Float64()-0.5)*0.2))
+	cDB.SchedulePackage(pkg, time.Now().Add(d), etag)
 }
 
 func appendNewPackage(pkg, foundWay string) {
@@ -49,10 +49,10 @@ func appendNewPackage(pkg, foundWay string) {
 	if err := store.UpdatePackage(site, path, func(*gpb.PackageInfo) error {
 		return nil
 	}); err != nil {
-		log.Printf("UpdatePackage %s %s failed: %v", site, path, err)
+		log.Printf("UpdatePackage %v %v failed: %v", site, path, err)
 	}
 	if err := store.AppendPackageEvent(site, path, foundWay, time.Now(), gpb.HistoryEvent_Action_None); err != nil {
-		log.Printf("UpdatePackageHistory %s %s failed: %v", site, path, err)
+		log.Printf("UpdatePackageHistory %v %v failed: %v", site, path, err)
 	}
 }
 
@@ -139,7 +139,7 @@ func packageToDoc(p *gcse.Package) gcse.DocInfo {
 		}
 	}
 
-	// append new authors
+	// Append new authors.
 	if strings.HasPrefix(d.Package, "github.com/") {
 		cDB.AppendPerson("github.com", d.Author)
 	} else if strings.HasPrefix(d.Package, "bitbucket.org/") {
@@ -164,8 +164,7 @@ func (pc *PackageCrawler) Map(key, val sophie.SophieWriter, c []sophie.Collector
 	// TODO add context in villa
 	ctx := context.Background()
 	if time.Now().After(AppStopTime) {
-		log.Printf("[Part %d] Timeout(key = %v), PackageCrawler returns EOM",
-			pc.part, key)
+		log.Printf("[Part %d] Timeout(key = %v), PackageCrawler returns EOM", pc.part, key)
 		return mr.EOM
 	}
 	pkg := string(*key.(*sophie.RawString))
@@ -174,7 +173,11 @@ func (pc *PackageCrawler) Map(key, val sophie.SophieWriter, c []sophie.Collector
 		// if gcse.CrawlerVersion is larger than Version, Etag is ignored.
 		ent.Etag = ""
 	}
-	log.Printf("[Part %d] Crawling package %v with etag %s\n", pc.part, pkg, ent.Etag)
+
+	log.Printf("<< Map phase started for pkg=%v >>", pkg)
+	defer log.Printf(">> Map phase finished for pkg=%v <<", pkg)
+
+	log.Printf("[Part %d] Crawling package %v with etag %v", pc.part, pkg, ent.Etag)
 
 	p, flds, err := gcse.CrawlPackage(ctx, pc.httpClient, pkg, ent.Etag)
 	for _, fld := range flds {
@@ -189,7 +192,7 @@ func (pc *PackageCrawler) Map(key, val sophie.SophieWriter, c []sophie.Collector
 	}
 	site, path := utils.SplitPackage(pkg)
 	if err != nil && errorsp.Cause(err) != gcse.ErrPackageNotModifed {
-		log.Printf("[Part %d] Crawling pkg %s failed: %v", pc.part, pkg, err)
+		log.Printf("[Part %d] Crawling pkg %v failed: %v", pc.part, pkg, err)
 		if gcse.IsBadPackage(err) {
 			utils.LogError(store.AppendPackageEvent(site, path, "", time.Now(), gpb.HistoryEvent_Action_Invalid), "AppendPackageEvent %v %v failed", site, path)
 			bi.AddValue(bi.Sum, "crawler.package.wrong-package", 1)
@@ -199,7 +202,7 @@ func (pc *PackageCrawler) Map(key, val sophie.SophieWriter, c []sophie.Collector
 			}
 			c[0].Collect(sophie.RawString(pkg), &nda)
 			cDB.PackageDB.Delete(pkg)
-			log.Printf("[Part %d] Remove wrong package %s", pc.part, pkg)
+			log.Printf("[Part %d] Removed bad (i.e. wrong) package %v", pc.part, pkg)
 		} else {
 			utils.LogError(store.AppendPackageEvent(site, path, "", time.Now(), gpb.HistoryEvent_Action_Failed), "AppendPackageEvent %v %v failed", site, path)
 			bi.Inc("crawler.package.failed")
@@ -210,27 +213,29 @@ func (pc *PackageCrawler) Map(key, val sophie.SophieWriter, c []sophie.Collector
 
 			cDB.SchedulePackage(pkg, time.Now().Add(FailPackageAge), ent.Etag)
 
+			// TODO Implement rate limit checker here, avoid time.Sleep!!!.
 			if pc.failCount >= 10 || strings.Contains(err.Error(), "403") {
+				log.Printf("WARNING: \"403\" found in error message \"%s\"", err)
+
 				durToSleep := 10 * time.Minute
 				if time.Now().Add(durToSleep).After(AppStopTime) {
-					log.Printf("[Part %d] Timeout(key = %v), PackageCrawler returns EOM",
-						pc.part, key)
+					log.Printf("[Part %d] Timeout(key = %v), PackageCrawler returns EOM", pc.part, key)
 					return mr.EOM
 				}
 
-				log.Printf("[Part %d] Last ten crawling packages failed, sleep for a while...(current: %s)",
-					pc.part, pkg)
+				log.Printf("[Part %d] Last ten crawling packages failed, sleep for a while...(current: %v)", pc.part, pkg)
 				time.Sleep(durToSleep)
 				pc.failCount = 0
 			}
 		}
 		return nil
 	}
+
 	utils.LogError(store.AppendPackageEvent(site, path, "", time.Now(), gpb.HistoryEvent_Action_Success), "AppendPackageEvent %v %v failed", site, path)
 	pc.failCount = 0
 	if errorsp.Cause(err) == gcse.ErrPackageNotModifed {
 		// TODO crawling stars for unchanged project
-		log.Printf("[Part %d] Package %s unchanged!", pc.part, pkg)
+		log.Printf("[Part %d] Package %v unchanged!", pc.part, pkg)
 		schedulePackageNextCrawl(pkg, ent.Etag)
 		bi.AddValue(bi.Sum, "crawler.package.not-modified", 1)
 		return nil
@@ -239,7 +244,7 @@ func (pc *PackageCrawler) Map(key, val sophie.SophieWriter, c []sophie.Collector
 	if strings.HasPrefix(pkg, "github.com/") {
 		bi.AddValue(bi.Sum, "crawler.package.success.github", 1)
 	}
-	log.Printf("[Part %d] Crawled package %s success!", pc.part, pkg)
+	log.Printf("[Part %d] Crawled package %v success!", pc.part, pkg)
 
 	var pkgInfo *gpb.PackageInfo
 	if err := store.UpdatePackage(site, path, func(pi *gpb.PackageInfo) error {
@@ -256,7 +261,7 @@ func (pc *PackageCrawler) Map(key, val sophie.SophieWriter, c []sophie.Collector
 		DocInfo: packageToDoc(p),
 	}
 	c[0].Collect(sophie.RawString(pkg), &nda)
-	log.Printf("[Part %d] Package %s saved!", pc.part, pkg)
+	log.Printf("[Part %d] Package %v saved!", pc.part, pkg)
 
 	if !strings.HasPrefix(pkg, "github.com/") {
 		// github.com throttling is done within the GithubSpider.
@@ -265,12 +270,12 @@ func (pc *PackageCrawler) Map(key, val sophie.SophieWriter, c []sophie.Collector
 	return nil
 }
 
-// crawl packages, send error back to end
-func crawlPackages(httpClient doc.HttpClient, fpToCrawlPkg,
-	fpOutNewDocs sophie.FsPath, end chan error) {
+// crawlPackages crawls packages and sends any error back to "end" channel.
+func crawlPackages(httpClient doc.HttpClient, fpToCrawlPkg, fpOutNewDocs sophie.FsPath, end chan error) {
+	timeout := configs.CrawlerDuePerRun + crawlOverdueLimit
 
-	time.AfterFunc(configs.CrawlerDuePerRun+time.Minute*10, func() {
-		end <- errorsp.NewWithStacks("Crawling packages timeout!")
+	time.AfterFunc(timeout, func() {
+		end <- errorsp.NewWithStacks("Crawling packages timed out after %s", timeout)
 	})
 	end <- func() error {
 		outNewDocs := kv.DirOutput(fpOutNewDocs)

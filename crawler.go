@@ -149,8 +149,8 @@ func (br *BlackRequest) Do(req *http.Request) (*http.Response, error) {
 	return resp, nil
 }
 
-func GenHttpClient(proxy string) doc.HttpClient {
-	tp := &http.Transport{
+func NewHTTPClient(proxy string) doc.HttpClient {
+	transport := &http.Transport{
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: true,
 		},
@@ -158,13 +158,13 @@ func GenHttpClient(proxy string) doc.HttpClient {
 	if proxy != "" {
 		proxyURL, err := url.Parse(proxy)
 		if err == nil {
-			tp.Proxy = http.ProxyURL(proxyURL)
+			transport.Proxy = http.ProxyURL(proxyURL)
 		}
 	}
 	return &BlackRequest{
-		badUrls: make(map[string]http.Response),
+		badUrls: map[string]http.Response{},
 		client: &http.Client{
-			Transport: tp,
+			Transport: transport,
 		},
 	}
 }
@@ -474,8 +474,7 @@ func CrawlPackage(ctx context.Context, httpClient doc.HttpClient, pkg string, et
 
 	readmeFn, readmeData := "", ""
 	for fn, data := range pdoc.ReadmeFiles {
-		readmeFn, readmeData = strings.TrimSpace(fn),
-			strings.TrimSpace(string(data))
+		readmeFn, readmeData = strings.TrimSpace(fn), strings.TrimSpace(string(data))
 		if len(readmeData) > 1 && utf8.ValidString(readmeData) {
 			break
 		} else {
@@ -492,7 +491,9 @@ func CrawlPackage(ctx context.Context, httpClient doc.HttpClient, pkg string, et
 	}
 	importsSet := stringsp.NewSet(pdoc.Imports...)
 	importsSet.Delete(pdoc.ImportPath)
+
 	imports := importsSet.Elements()
+
 	testImports := stringsp.NewSet(pdoc.TestImports...)
 	testImports.Add(pdoc.XTestImports...)
 	testImports.Delete(imports...)
@@ -528,6 +529,7 @@ func CrawlPackage(ctx context.Context, httpClient doc.HttpClient, pkg string, et
 
 func CrawlPerson(ctx context.Context, httpClient doc.HttpClient, id string) (*Person, error) {
 	site, user := ParsePersonID(id)
+
 	switch site {
 	case "github.com":
 		u, err := GithubSpider.ReadUser(ctx, user)
@@ -548,6 +550,7 @@ func CrawlPerson(ctx context.Context, httpClient doc.HttpClient, id string) (*Pe
 			}
 		}
 		return p, nil
+
 	case "bitbucket.org":
 		p, err := doc.GetBitbucketPerson(httpClient, map[string]string{"owner": user})
 		if err != nil {
@@ -557,11 +560,14 @@ func CrawlPerson(ctx context.Context, httpClient doc.HttpClient, id string) (*Pe
 			Id:       id,
 			Packages: p.Projects,
 		}, nil
+
+	default:
+		return nil, nil
 	}
-	return nil, nil
 }
 
 func IsBadPackage(err error) bool {
 	err = villa.DeepestNested(errorsp.Cause(err))
-	return doc.IsNotFound(err) || err == ErrInvalidPackage || err == github.ErrInvalidPackage
+	badPkgErr := doc.IsNotFound(err) || err == ErrInvalidPackage || err == github.ErrInvalidPackage
+	return badPkgErr
 }

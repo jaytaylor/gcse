@@ -10,6 +10,7 @@ import (
 	"github.com/golangplus/errors"
 	"github.com/golangplus/time"
 
+	"github.com/daviddengcn/gcse"
 	"github.com/daviddengcn/gcse/configs"
 	gpb "github.com/daviddengcn/gcse/shared/proto"
 	"github.com/daviddengcn/gcse/spider/github"
@@ -166,7 +167,9 @@ func exec(maxCrawl int, dur time.Duration) error {
 func main() {
 	log.Printf("Using Github personal token: %v", configs.CrawlerGithubPersonal)
 
-	githubSpider = github.NewSpiderWithToken(configs.CrawlerGithubPersonal)
+	httpClient := gcse.NewHTTPClient("")
+
+	githubSpider = github.NewSpiderWithToken(configs.CrawlerGithubPersonal, httpClient)
 
 	if err := exec(1000, configs.CrawlerDuePerRun); err != nil {
 		log.Fatalf("exec failed: %v", err)
