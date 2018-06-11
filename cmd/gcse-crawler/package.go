@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"math/rand"
 	"strings"
@@ -253,6 +254,7 @@ func (pc *PackageCrawler) Map(key, val sophie.SophieWriter, c []sophie.Collector
 		return nil
 	}); err != nil {
 		log.Printf("UpdatePackage %v %v failed: %v", site, path, err)
+		return fmt.Errorf("UpdatePackage %v %v failed: %v", site, path, err)
 	}
 	saveRelatedInfo(pkgInfo)
 
