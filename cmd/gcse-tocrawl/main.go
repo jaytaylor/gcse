@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"io"
 	"log"
 	"math/rand"
@@ -30,6 +31,8 @@ import (
 )
 
 var (
+	PartitionSize = 10000
+
 	cDB *gcse.CrawlerDB
 )
 
@@ -63,15 +66,7 @@ func loadPackageUpdateTimes(fpDocs sophie.FsPath) (map[string]time.Time, error) 
 	return pkgUTs, nil
 }
 
-func generateCrawlEntries(db *gcse.MemDB, hostFromID func(id string) string, out kv.DirOutput, pkgUTs map[string]time.Time) error {
-	var (
-		now            = time.Now()
-		groups         = make(map[string][]idAndCrawlingEntry)
-		count          = 0
-		skippedVendors = 0
-		ages           = map[string]nameAndAges{}
-	)
-
+func generateCrawlEntries(db *gcse.MemDB, hostFromIDFn func(id string) string, out kv.DirOutput, pkgUTs map[string]time.Time) error {
 	type idAndCrawlingEntry struct {
 		id  string
 		ent *gcse.CrawlingEntry
@@ -84,9 +79,17 @@ func generateCrawlEntries(db *gcse.MemDB, hostFromID func(id string) string, out
 		sumAgeHours float64
 		cnt         int
 
-		// The number of packages not in pkgUTs
-		newCnt int
+		newCnt int // The number of packages not in pkgUTs.
 	}
+
+	var (
+		now            = time.Now()
+		groups         = make(map[string][]idAndCrawlingEntry)
+		count          = 0
+		skippedVendors = 0
+		ages           = map[string]nameAndAges{}
+		currentPart    = 0 // Track current partition shard.
+	)
 
 	dbIterFn := func(id string, val interface{}) error {
 		ent, ok := val.(gcse.CrawlingEntry)
@@ -98,18 +101,20 @@ func generateCrawlEntries(db *gcse.MemDB, hostFromID func(id string) string, out
 			return nil
 		}
 		if strings.Contains(id, "/vendor/") {
-			// Ignoring vendors
+			// Ignore vendor directories.
 			skippedVendors++
 			return nil
 		}
 
-		host := hostFromID(id)
+		host := hostFromIDFn(id)
 
 		// TODO Marked spot for review in implementing handlers for more than just
-		//      github.com
+		//      github.com.
 		if host != "github.com" {
 			return nil
 		}
+
+		partKey := fmt.Sprintf("%v-%v", host, currentPart)
 
 		// Check host blacklist.
 		if configs.NonCrawlHosts.Contain(host) {
@@ -121,13 +126,20 @@ func generateCrawlEntries(db *gcse.MemDB, hostFromID func(id string) string, out
 			ent.Etag = ""
 		}
 
-		groups[host] = append(groups[host], idAndCrawlingEntry{
+		groups[partKey] = append(groups[partKey], idAndCrawlingEntry{
 			id:  id,
 			ent: &ent,
 		})
 
-		age := now.Sub(ent.ScheduleTime)
-		na := ages[host]
+		if len(groups[partKey]) > PartitionSize {
+			currentPart++
+		}
+
+		var (
+			age = now.Sub(ent.ScheduleTime)
+			na  = ages[host]
+		)
+
 		if age > na.maxAge {
 			na.maxName, na.maxAge = id, age
 		}
@@ -189,9 +201,12 @@ func generateCrawlEntries(db *gcse.MemDB, hostFromID func(id string) string, out
 		}
 		index++
 	}
+
 	for host, na := range ages {
 		aveAge := time.Duration(na.sumAgeHours / float64(na.cnt) * float64(time.Hour))
 		log.Printf("%s age: max -> %v(%s), ave -> %v, new -> %v", host, na.maxAge, na.maxName, aveAge, na.newCnt)
+		// TODO Marked spot for review in implementing handlers for more than just
+		//      github.com.
 		if host == "github.com" && strings.Contains(out.Path, configs.FnPackage) {
 			gcse.AddBiValueAndProcess(bi.Average, "crawler.github_max_age.hours", int(na.maxAge.Hours()))
 			gcse.AddBiValueAndProcess(bi.Average, "crawler.github_max_age.days", int(na.maxAge/timep.Day))
