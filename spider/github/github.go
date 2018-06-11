@@ -113,16 +113,21 @@ func (s *Spider) waitForRate() error {
 
 	pct := float64(rem) / float64(limit)
 
-	log.Printf("Github API quota rem/limit: %v/%v (%v%% available)", rem, limit, pct)
+	log.Printf("Github API quota rem/limit: %v/%v (%v%% available)", rem, limit, pct*100)
 
 	if pct < MinAllowedRateQuota {
 		log.Printf("Less than %v% github API quota is remaining, waiting to recover 2x this amount", MinAllowedRateQuota*100)
 
 		for {
-			time.Sleep(30 * time.Second)
+			time.Sleep(180 * time.Second)
 
 			rem, limit, err := s.checkRateQuota()
 			if err != nil {
+				if strings.Contains(err.Error(), "too many open files") {
+					log.Printf("Detected \"too many open files\" error, sleeping for 10 extra minutes")
+					time.Sleep(600 * time.Second)
+					continue
+				}
 				log.Printf("Error checking github rate-limit quota: %s", err)
 				continue
 			}
@@ -130,7 +135,7 @@ func (s *Spider) waitForRate() error {
 			newPct := float64(rem) / float64(limit)
 
 			if newPct/2 > pct {
-				log.Printf("Recovered 2x github rate-limit quota, resuming operation")
+				log.Printf("Recovered 2x of minimum github rate-limit quota, resuming operation")
 				break
 			}
 		}
