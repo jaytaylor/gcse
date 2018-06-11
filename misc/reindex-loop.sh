@@ -9,11 +9,13 @@ if [ $(id -u) -ne 0 ] ; then
     exit 1
 fi
 
+origUser="$(logname)"
+
 while [ true ] ; do
     echo date
     gcse-mergedocs
     gcse-indexer
-    chown -R ppx:ppx .git .
+    chown -R "${origUser}:${origUser}" .git .
     service gcse-service-web restart
     sleep 600
 done

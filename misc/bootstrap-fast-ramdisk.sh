@@ -11,6 +11,8 @@ fi
 
 set -x
 
+origUser="$(logname)"
+
 cd "$(dirname "$0")/.."
 
 mkdir -p /mnt/ramdisk
@@ -34,6 +36,7 @@ fi
 ln -s /mnt/ramdisk "$(pwd)/data"
 
 echo "INFO: Starting gcse-tocrawl" 1>&2
+export PATH="${PATH}:/home/${origUser}/go/bin"
 gcse-tocrawl
 echo "INFO: Finished gcse-tocrawl" 1>&2
 
@@ -41,7 +44,7 @@ echo -n 'INFO: Copying ramdisk data to stable storage ..' 1>&2
 newData="data.$(date +%s)"
 mkdir -p "${newData}"
 cp -a data/* "${newData}/"
-chown -R ppx:ppx data/
+chown -R "${origUser}:${origUser}" data/
 echo 'OK'
 
 echo -n 'INFO: Cleaning up ramdisk ..' 1>&2

@@ -31,7 +31,7 @@ import (
 )
 
 var (
-	PartitionSize = 10000
+	PartitionSize = 375000
 
 	cDB *gcse.CrawlerDB
 )
@@ -232,6 +232,7 @@ func syncDatabases() {
 
 func main() {
 	flag.Set("log_dir", "./logs")
+	flag.IntVar(&PartitionSize, "partition-size", PartitionSize, "Number of packages per partition.  The number of concurrent MR workers will be the total number of packages divided by partition size.  Each partition will become an MR worker during crawl phase, and more workers consume the github API rate-limit quota faster")
 
 	flag.Parse()
 
